@@ -290,16 +290,15 @@ select.arsel{background:var(--bg);border:1px solid var(--bdr);color:var(--tx);fo
     <input type="file" id="fileInput" accept=".txt,.csv">
   </div>
   <div class="brow" style="align-self:flex-end;flex-wrap:wrap;gap:6px">
-    <button class="btn btnp" id="fetchBtn" onclick="dbAddFromInput()">+ Add to DB</button>
-    <button class="btn btnupd" id="p1Btn" onclick="runPhase1All()">⚡ Phase 1 — Prices</button>
-    <button class="btn" style="background:transparent;color:#9c6aff;border:1px solid #9c6aff" id="p2Btn" onclick="runPhase2Manual()" disabled>📊 Load Phase 2 Charts</button>
-    <button class="btn" style="background:transparent;color:#00c853;border:1px solid #00c853" id="newBtn" onclick="fetchRecentlyAdded()" disabled>✦ Fetch New Only</button>
+    <button class="btn btnp" id="fetchBtn" onclick="addAndFetch()">+ Add to DB &amp; Fetch</button>
+    <button class="btn btnupd" id="p1Btn" onclick="refreshAllPrices()">⟳ Update All Prices</button>
+    <button class="btn" style="background:transparent;color:#9c6aff;border:1px solid #9c6aff" id="p2Btn" onclick="runPhase2Manual()">📊 Load Charts</button>
     <button class="btn btns" id="pauseBtn" onclick="togglePause()" disabled>Pause</button>
     <button class="btn btns" id="stopBtn" onclick="stopFetch()" disabled>Stop</button>
     <button class="btn btns" onclick="clearAll()">Clear</button>
-    <button class="btn btng" onclick="openWatchlistPage()">★ Watchlist Charts</button>
+    <button class="btn btng" onclick="openWatchlistPage()">★ Watchlist</button>
     <div class="arwrap">
-      <label for="arSel">Auto P1:</label>
+      <label for="arSel">Auto:</label>
       <select class="arsel" id="arSel" onchange="setAutoRefresh()">
         <option value="0">Off</option>
         <option value="15">15 min</option>
@@ -315,7 +314,7 @@ select.arsel{background:var(--bg);border:1px solid var(--bdr);color:var(--tx);fo
 <div class="dbpanel" id="dbPanel">
   <div class="dblbl">MY STOCKS <span id="dbTotalLbl" style="color:var(--acc)"></span></div>
   <div class="dbchips" id="dbChips"></div>
-  <button class="btn btnupd" style="font-size:11px;padding:4px 9px;flex-shrink:0" onclick="runPhase1All()">&#8635; Update Prices</button>
+  <button class="btn btnupd" style="font-size:11px;padding:4px 9px;flex-shrink:0" onclick="refreshAllPrices()">&#8635; Refresh Prices</button>
 </div>
 
 <div class="prog" id="progPanel">
@@ -1000,259 +999,205 @@ function fetchTicker(sym){
   });
 }
 
-// § FETCH LOOP — Smart Cache + Manual Phase System
-// CACHE: chart data stored in localStorage per ticker, expires after CACHE_TTL hours
-// Phase 1: bulk prices — always fast, called on open + manual
-// Phase 2: deep charts — only on button click, skips cached tickers
-// fetchRecentlyAdded: only fetches tickers with no cache at all
+// § FETCH LOOP — Simple 2-button system
+// addAndFetch()      → adds new tickers to DB, fetches prices immediately
+// refreshAllPrices() → updates prices for everything in DB (fast, bulk)
+// runPhase2Manual()  → loads EMA/RSI/sparklines (cached, only missing ones)
+// On page open       → instantly loads from cache, then silently refreshes prices
 
-var CACHE_KEY='spv4_cache';  // {sym: {data:{...}, ts: epoch}}
-var CACHE_TTL=4;             // hours before chart data is considered stale
+var CACHE_KEY='spv4_cache';
+var CACHE_TTL=4; // hours
 
-// ── CACHE HELPERS ──
-function cacheLoad(){
-  try{var s=localStorage.getItem(CACHE_KEY);return s?JSON.parse(s):{};}catch(e){return {};}
-}
-function cacheSave(cache){
-  try{localStorage.setItem(CACHE_KEY,JSON.stringify(cache));}catch(e){}
-}
+function cacheLoad(){try{var s=localStorage.getItem(CACHE_KEY);return s?JSON.parse(s):{};}catch(e){return {};}}
+function cacheSave(c){try{localStorage.setItem(CACHE_KEY,JSON.stringify(c));}catch(e){}}
 function cacheGet(sym){
   var c=cacheLoad();
   if(!c[sym])return null;
-  var ageH=(Date.now()-c[sym].ts)/3600000;
-  if(ageH>CACHE_TTL)return null; // expired
+  if((Date.now()-c[sym].ts)/3600000>CACHE_TTL)return null;
   return c[sym].data;
 }
-function cacheSet(sym,data){
-  var c=cacheLoad();
-  c[sym]={data:data,ts:Date.now()};
-  cacheSave(c);
-}
-function cacheClear(){
-  try{localStorage.removeItem(CACHE_KEY);}catch(e){}
-}
+function cacheSet(sym,data){var c=cacheLoad();c[sym]={data:data,ts:Date.now()};cacheSave(c);}
 function cacheHas(sym){return !!cacheGet(sym);}
 
-// ── UI HELPERS ──
 function setFetchingUI(on){
   document.getElementById('fetchBtn').disabled=on;
   document.getElementById('p1Btn').disabled=on;
+  document.getElementById('p2Btn').disabled=on;
   document.getElementById('pauseBtn').disabled=!on;
   document.getElementById('stopBtn').disabled=!on;
-  if(!on){
-    document.getElementById('pauseBtn').textContent='Pause';
-    document.getElementById('progEta').textContent='';
-  }
+  if(!on){document.getElementById('pauseBtn').textContent='Pause';document.getElementById('progEta').textContent='';}
 }
-
-function initTableUI(tks){
-  stopReq=false;pauseReq=false;allData=[];filtered=[];
-  t0=Date.now();doneN=0;
-  setFetchingUI(true);
+function showTable(){
   document.getElementById('progPanel').className='prog on';
   document.getElementById('statsBar').style.display='flex';
   document.getElementById('toolbar').style.display='flex';
   document.getElementById('emptyState').style.display='none';
-  buildTable();
-  setTimeout(fixH,80);
-  setP(0,tks.length,'Starting...');
 }
 
-// ── PHASE 1: Load all prices (bulk, fast) ──
-// Called on page load and when user clicks "Phase 1 — Prices"
-function runPhase1All(){
-  var syms=tickerDb.map(function(t){return t.sym;});
-  if(!syms.length){showToast('Add stocks to DB first','err');return;}
-
-  // Load from cache first for instant display
-  var cached=[];
-  var cache=cacheLoad();
-  for(var i=0;i<syms.length;i++){
-    if(cache[syms[i]]){
-      var d=cache[syms[i]].data;
-      cached.push(d);
+// ── ADD & FETCH — adds new tickers then immediately fetches their prices ──
+function addAndFetch(){
+  var raw=document.getElementById('tickerInput').value.trim();
+  if(!raw){showToast('Type tickers first','err');return;}
+  var parsed=parseTickers(raw);
+  var added=0,n=dbNextN();
+  var today=new Date().toISOString().slice(0,10);
+  var newSyms=[];
+  for(var i=0;i<parsed.length;i++){
+    if(!dbHas(parsed[i])){
+      tickerDb.push({n:n++,sym:parsed[i],added:today});
+      newSyms.push(parsed[i]);
+      added++;
     }
   }
-  if(cached.length>0){
-    allData=cached;filtered=[];
-    document.getElementById('progPanel').className='prog on';
-    document.getElementById('statsBar').style.display='flex';
-    document.getElementById('toolbar').style.display='flex';
-    document.getElementById('emptyState').style.display='none';
-    buildTable();setTimeout(fixH,80);
-    updateStats();applyFilter(false);
-    setP(cached.length,syms.length,'Loaded '+cached.length+' from cache. Refreshing prices...');
-  }
-
-  // Then fetch fresh Phase 1 prices
-  initTableUI(syms);
-  document.getElementById('tickerInput').value=syms.join('\n');
-
-  var BULK=100;
-  var batches=[];
-  for(var b=0;b<syms.length;b+=BULK)batches.push(syms.slice(b,b+BULK));
-  var p1done=0;
-  var stockMap={};
-
-  // Prefill stockMap from cache so cached tickers show immediately
-  for(var s in cache){if(cache[s])stockMap[s]=cache[s].data;}
-
-  setP(0,syms.length,'⚡ Phase 1: Loading prices...');
-
-  Promise.all(batches.map(function(batch,bi){
-    return sleep(bi*150).then(function(){
-      return bulkQuote(batch).then(function(map){
-        for(var sym in map){
-          stockMap[sym]=map[sym];
-          // Merge cached chart data into fresh price data
-          var cached2=cacheGet(sym);
-          if(cached2){
-            stockMap[sym].closes=cached2.closes||[];
-            stockMap[sym].e20a=cached2.e20a||null;
-            stockMap[sym].v20=cached2.v20;stockMap[sym].v50=cached2.v50;
-            stockMap[sym].v100=cached2.v100;stockMap[sym].v200=cached2.v200;
-            stockMap[sym].a20=cached2.a20;stockMap[sym].a50=cached2.a50;
-            stockMap[sym].a100=cached2.a100;stockMap[sym].a200=cached2.a200;
-            stockMap[sym].rsi=cached2.rsi;stockMap[sym].sc=cached2.sc;
-            stockMap[sym].d20=cached2.d20;stockMap[sym].d50=cached2.d50;
-            stockMap[sym].d100=cached2.d100;stockMap[sym].d200=cached2.d200;
-            stockMap[sym].fbull=cached2.fbull;stockMap[sym].fbear=cached2.fbear;
-            stockMap[sym].e20g50=cached2.e20g50;stockMap[sym].e50g100=cached2.e50g100;
-            stockMap[sym].e100g200=cached2.e100g200;
-            stockMap[sym].anyx=cached2.anyx;
-          }
-        }
-        p1done+=batch.length;
-        // Rebuild allData in DB order
-        allData=syms.map(function(sym){
-          return stockMap[sym]||{sym:sym,name:sym,err:'Not found',closes:[],e20a:null,sc:0,d20:0,d50:0,d100:0,d200:0};
-        });
-        updateStats();applyFilter(false);
-        setP(p1done,syms.length,'⚡ Phase 1: '+p1done+'/'+syms.length+' prices loaded');
-      }).catch(function(){
-        p1done+=batch.length;
-        USE_FUNCTION=false;
-      });
-    });
-  })).then(function(){
-    allData=syms.map(function(sym){
-      return stockMap[sym]||{sym:sym,name:sym,err:'No data',closes:[],e20a:null,sc:0,d20:0,d50:0,d100:0,d200:0};
-    });
-    updateStats();applyFilter(false);
-    setFetchingUI(false);
-    document.getElementById('progPanel').className='prog';
-    document.getElementById('tickerInput').value='';
-    // Enable Phase 2 and New Only buttons
-    document.getElementById('p2Btn').disabled=false;
-    document.getElementById('newBtn').disabled=false;
-    var uncached=syms.filter(function(s){return !cacheHas(s);}).length;
-    document.getElementById('lastUpd').textContent='P1 done: '+new Date().toLocaleTimeString('en-IN');
-    showToast('⚡ Prices loaded! '+uncached+' stocks need Phase 2 charts.', 'ok');
+  dbSave();
+  document.getElementById('tickerInput').value='';
+  renderDbPanel();
+  if(added===0){showToast('All tickers already in DB','');return;}
+  showToast(added+' added — fetching prices...','ok');
+  // Fetch prices for new stocks and add to table
+  fetchPrices(newSyms, function(){
+    showToast(added+' stock'+(added>1?'s':'')+' added with prices! Click 📊 for charts.','ok');
   });
 }
 
-// ── PHASE 2: Deep charts (EMA/RSI/sparklines) — MANUAL ONLY ──
-// Skips any ticker already cached. Only fetches what's missing.
+// ── REFRESH ALL PRICES — fast bulk update for everything in DB ──
+function refreshAllPrices(){
+  var syms=tickerDb.map(function(t){return t.sym;});
+  if(!syms.length){showToast('Add stocks to DB first','err');return;}
+  showToast('Refreshing '+syms.length+' prices...','');
+  fetchPrices(syms, function(){
+    document.getElementById('lastUpd').textContent='Updated: '+new Date().toLocaleTimeString('en-IN');
+    showToast('✓ All prices updated','ok');
+  });
+}
+
+// ── CORE PRICE FETCH — fetches bulk prices, merges chart cache, updates table ──
+function fetchPrices(syms, onDone){
+  stopReq=false;pauseReq=false;
+  showTable();
+  if(!vtB)buildTable();
+  setTimeout(fixH,80);
+  setFetchingUI(true);
+
+  // Build a full stockMap from ALL db tickers first (cache or placeholder)
+  // so every stock always shows in the table — never disappears
+  var allDbSyms=tickerDb.map(function(t){return t.sym;});
+  var stockMap={};
+  for(var i=0;i<allDbSyms.length;i++){
+    var s=allDbSyms[i];
+    var cached=cacheGet(s);
+    if(cached){
+      stockMap[s]=cached;
+    } else {
+      // placeholder so row appears immediately
+      stockMap[s]={sym:s,name:s,price:null,pch:null,err:null,
+        closes:[],e20a:null,sc:0,d20:0,d50:0,d100:0,d200:0,phase:0};
+    }
+  }
+  // Render immediately with what we have
+  allData=allDbSyms.map(function(s){return stockMap[s];});
+  updateStats();applyFilter(false);
+  setP(0,syms.length,'Loading prices...');
+
+  var BULK=100,batches=[],done=0;
+  for(var b=0;b<syms.length;b+=BULK)batches.push(syms.slice(b,b+BULK));
+
+  Promise.all(batches.map(function(batch,bi){
+    return sleep(bi*100).then(function(){
+      return bulkQuote(batch).then(function(map){
+        for(var sym in map){
+          var ch=cacheGet(sym);
+          if(ch){
+            map[sym].closes=ch.closes||[];
+            map[sym].e20a=ch.e20a||null;
+            map[sym].v20=ch.v20;map[sym].v50=ch.v50;
+            map[sym].v100=ch.v100;map[sym].v200=ch.v200;
+            map[sym].a20=ch.a20;map[sym].a50=ch.a50;
+            map[sym].a100=ch.a100;map[sym].a200=ch.a200;
+            map[sym].rsi=ch.rsi;map[sym].sc=ch.sc;
+            map[sym].d20=ch.d20;map[sym].d50=ch.d50;
+            map[sym].d100=ch.d100;map[sym].d200=ch.d200;
+            map[sym].fbull=ch.fbull;map[sym].fbear=ch.fbear;
+            map[sym].e20g50=ch.e20g50;map[sym].e50g100=ch.e50g100;map[sym].e100g200=ch.e100g200;
+            map[sym].anyx=ch.anyx;map[sym].wvol=ch.wvol;map[sym].awg=ch.awg;
+            map[sym].mvol=ch.mvol;map[sym].amg=ch.amg;map[sym].wr=ch.wr;map[sym].mr=ch.mr;
+          }
+          stockMap[sym]=map[sym]; // update in stockMap
+        }
+        done+=batch.length;
+        // Always rebuild allData from full DB order — never drop a row
+        allData=allDbSyms.map(function(s){return stockMap[s];});
+        setP(done,syms.length,'Prices: '+done+'/'+syms.length);
+        updateStats();applyFilter(false);
+      }).catch(function(){done+=batch.length;setP(done,syms.length,'Retrying...');});
+    });
+  })).then(function(){
+    // Final render with complete data
+    allData=allDbSyms.map(function(s){return stockMap[s];});
+    updateStats();applyFilter(false);
+    setFetchingUI(false);
+    document.getElementById('progPanel').className='prog';
+    if(onDone)onDone();
+  });
+}
+
+// ── PHASE 2: Load Charts — EMA/RSI/sparklines, cached, only missing ones ──
 function runPhase2Manual(){
   var syms=tickerDb.map(function(t){return t.sym;});
   var toFetch=syms.filter(function(s){return !cacheHas(s);});
-  if(!toFetch.length){
-    showToast('All charts already cached! ✓','ok');return;
-  }
-  showToast('📊 Loading '+toFetch.length+' charts...','');
+  if(!toFetch.length){showToast('All charts cached ✓ — nothing to load','ok');return;}
+  showToast('Loading '+toFetch.length+' charts...','');
   setFetchingUI(true);
-  document.getElementById('p2Btn').disabled=true;
-  setP(0,toFetch.length,'📊 Phase 2: Loading '+toFetch.length+' charts...');
-
+  setP(0,toFetch.length,'📊 Loading charts: 0/'+toFetch.length);
   var CONC=USE_FUNCTION?20:3;
   var idx=0,done=0;
-
+  stopReq=false;
   function nextBatch(){
     if(stopReq||idx>=toFetch.length){
       setFetchingUI(false);
-      document.getElementById('p2Btn').disabled=false;
       document.getElementById('progPanel').className='prog';
-      setP(done,toFetch.length,'📊 Charts complete — '+done+' loaded');
-      document.getElementById('lastUpd').textContent='P2 done: '+new Date().toLocaleTimeString('en-IN');
-      showToast('📊 '+done+' charts loaded and cached!','ok');
+      setP(done,toFetch.length,'📊 Charts done — '+done+' loaded');
+      document.getElementById('lastUpd').textContent='Charts: '+new Date().toLocaleTimeString('en-IN');
+      showToast('📊 '+done+' charts loaded & cached!','ok');
       return;
     }
     if(pauseReq){setTimeout(nextBatch,300);return;}
     var batch=toFetch.slice(idx,idx+CONC);idx+=CONC;
-
     Promise.all(batch.map(function(sym){
       var fn=USE_FUNCTION
         ?deepChart(sym).then(function(raw){return parseChartJson(sym,raw);})
         :fetchTicker(sym);
       return fn.then(function(obj){
-        cacheSet(sym,obj); // save to cache
-        // Update row in allData
-        for(var k=0;k<allData.length;k++){
-          if(allData[k].sym===sym){allData[k]=obj;break;}
-        }
+        cacheSet(sym,obj);
+        for(var k=0;k<allData.length;k++){if(allData[k].sym===sym){allData[k]=obj;break;}}
         done++;
-        setP(done,toFetch.length,'📊 Phase 2: '+done+'/'+toFetch.length);
+        setP(done,toFetch.length,'📊 Charts: '+done+'/'+toFetch.length);
         updateStats();applyFilter(false);
-      }).catch(function(){done++;});
-    })).then(function(){
-      setTimeout(nextBatch,idx<toFetch.length?200:0);
-    });
+      }).catch(function(){done++;setP(done,toFetch.length,'📊 Charts: '+done+'/'+toFetch.length);});
+    })).then(function(){setTimeout(nextBatch,idx<toFetch.length?200:0);});
   }
   nextBatch();
 }
 
-// ── FETCH RECENTLY ADDED — only new tickers with zero cache ──
-function fetchRecentlyAdded(){
-  var syms=tickerDb.map(function(t){return t.sym;});
-  var newSyms=syms.filter(function(s){return !cacheHas(s);});
-  if(!newSyms.length){showToast('No new stocks to fetch — all cached ✓','ok');return;}
-  showToast('✦ Fetching '+newSyms.length+' new stocks...','ok');
-
-  // Phase 1 for new ones
-  setFetchingUI(true);
-  var BULK=100;
-  var batches=[];
-  for(var b=0;b<newSyms.length;b+=BULK)batches.push(newSyms.slice(b,b+BULK));
-  var done=0;
-  setP(0,newSyms.length,'✦ Fetching '+newSyms.length+' new stocks...');
-
-  Promise.all(batches.map(function(batch,bi){
-    return sleep(bi*150).then(function(){
-      return bulkQuote(batch).then(function(map){
-        for(var sym in map){
-          // Add to allData
-          var exists=false;
-          for(var k=0;k<allData.length;k++){if(allData[k].sym===sym){allData[k]=map[sym];exists=true;break;}}
-          if(!exists)allData.push(map[sym]);
-        }
-        done+=batch.length;
-        setP(done,newSyms.length,'✦ New: '+done+'/'+newSyms.length);
-        updateStats();applyFilter(false);
-      });
-    });
-  })).then(function(){
-    setFetchingUI(false);
-    document.getElementById('progPanel').className='prog';
-    document.getElementById('p2Btn').disabled=false;
-    showToast('✦ '+newSyms.length+' new stocks loaded! Click Phase 2 for charts.','ok');
-  });
-}
-
-// ── PROXY FALLBACK MODE ──
-function runProxyMode(tks,clearAfter){
-  var total=tks.length;
+// ── PROXY FALLBACK (if Netlify function unavailable) ──
+function runProxyMode(tks,onDone){
+  var total=tks.length,i=0;
   setP(0,total,'Fetching via proxy...');
-  var i=0;
   function nextBatch(){
-    if(stopReq||i>=tks.length){finishFetch(clearAfter);return;}
+    if(stopReq||i>=tks.length){if(onDone)onDone();return;}
     if(pauseReq){setTimeout(nextBatch,300);return;}
     var batch=tks.slice(i,i+BSIZ);i+=BSIZ;
     Promise.all(batch.map(function(sym,bi){
       return sleep(bi*500).then(function(){return fetchTicker(sym);});
     })).then(function(results){
-      for(var j=0;j<results.length;j++)allData.push(results[j]);
+      for(var j=0;j<results.length;j++){
+        var obj=results[j];
+        var found=false;
+        for(var k=0;k<allData.length;k++){if(allData[k].sym===obj.sym){allData[k]=obj;found=true;break;}}
+        if(!found)allData.push(obj);
+      }
       doneN=Math.min(i,total);
-      setP(doneN,total,'Fetching ('+doneN+'/'+total+')');
+      setP(doneN,total,'Proxy: '+doneN+'/'+total);
       updateStats();applyFilter(false);
       setTimeout(nextBatch,i<total?BDLY:0);
     });
@@ -1260,33 +1205,23 @@ function runProxyMode(tks,clearAfter){
   nextBatch();
 }
 
-function finishFetch(clearAfter){
-  var ok=allData.filter(function(d){return !d.err;}).length;
-  var errs=allData.length-ok;
-  setP(allData.length,allData.length,'Complete');
+function finishFetch(){
   setFetchingUI(false);
   document.getElementById('lastUpd').textContent='Updated: '+new Date().toLocaleTimeString('en-IN');
-  if(clearAfter)document.getElementById('tickerInput').value='';
   updateStats();applyFilter(false);
-  showToast(ok+' loaded'+(errs?' | '+errs+' failed':''),errs===0?'ok':'');
 }
 
-// Legacy startFetch kept for proxy fallback mode
-function startFetch(clearAfter){
-  var raw=document.getElementById('tickerInput').value.trim();
-  if(!raw){return;}
-  var tks=parseTickers(raw);
-  if(!tks.length){return;}
-  stopReq=false;pauseReq=false;allData=[];filtered=[];
-  t0=Date.now();doneN=0;
-  setFetchingUI(true);
-  document.getElementById('progPanel').className='prog on';
-  document.getElementById('statsBar').style.display='flex';
-  document.getElementById('toolbar').style.display='flex';
-  document.getElementById('emptyState').style.display='none';
-  buildTable();setTimeout(fixH,80);
-  runProxyMode(tks,clearAfter);
+// Legacy stubs
+function startFetch(){}
+function fetchAllDb(){refreshAllPrices();}
+function runPhase1All(){refreshAllPrices();}
+function fetchRecentlyAdded(){
+  var syms=tickerDb.map(function(t){return t.sym;});
+  var newOnes=syms.filter(function(s){return !cacheHas(s);});
+  if(!newOnes.length){showToast('No new stocks — all cached','ok');return;}
+  fetchPrices(newOnes,function(){showToast(newOnes.length+' new stocks fetched','ok');});
 }
+function updateAll(){refreshAllPrices();}
 
 function togglePause(){
   pauseReq=!pauseReq;
@@ -1309,8 +1244,6 @@ function clearAll(){
   document.getElementById('progPanel').className='prog';
   document.getElementById('lastUpd').textContent='awaiting data';
   document.getElementById('emptyState').style.display='flex';
-  document.getElementById('p2Btn').disabled=true;
-  document.getElementById('newBtn').disabled=true;
   var w=document.getElementById('vtWrap');
   var hw=w.querySelector('.vthw'),bw=w.querySelector('.vtb');
   if(hw)hw.remove();if(bw)bw.remove();
@@ -1512,12 +1445,10 @@ function clearTickers(){}
 function restoreAndFetch(){
   dbLoad();
   renderDbPanel();
-  if(tickerDb.length>0){
-    // Auto Phase 1 on open — instant from cache, then refresh prices
-    setTimeout(runPhase1All, 400);
-  }
+  if(tickerDb.length===0)return;
+  // refreshAllPrices handles showing all DB stocks from cache + fresh prices
+  setTimeout(function(){refreshAllPrices();},300);
 }
-function updateAll(){runPhase1All();}
 
 // § AUTO REFRESH — auto runs Phase 1 only (prices, fast)
 function setAutoRefresh(){
