@@ -218,6 +218,26 @@ select.arsel{background:var(--bg);border:1px solid var(--bdr);color:var(--tx);fo
 .arind{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--mu);margin-left:3px;vertical-align:middle;transition:background .3s}
 .arind.on{background:#00c853;box-shadow:0 0 6px #00c853;animation:pu 2s ease-in-out infinite}
 
+/* § WATCHLIST CHART CARDS */
+.wlcard{background:var(--sur);border:1px solid var(--bdr);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.wlcard-top{display:flex;justify-content:space-between;align-items:flex-start}
+.wlcard-sym{font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:14px;color:var(--hd)}
+.wlcard-name{font-size:11px;color:var(--mu);margin-top:2px}
+.wlcard-price{text-align:right}
+.wlcard-pval{font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600}
+.wlcard-pch{font-family:'IBM Plex Mono',monospace;font-size:11px;margin-top:1px}
+.wlcard-chart{width:100%;height:80px;background:var(--bg);border-radius:4px;overflow:hidden}
+.wlcard-chart svg{width:100%;height:100%}
+.wlcard-stats{display:flex;gap:10px;flex-wrap:wrap}
+.wlcard-stat{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--mu)}
+.wlcard-stat span{color:var(--tx)}
+.wlcard-nodata{color:var(--mu);font-size:11px;font-family:'IBM Plex Mono',monospace;padding:16px 0;text-align:center}
+.wlpage-tab{font-family:'IBM Plex Mono',monospace;font-size:11px;padding:3px 10px;border-radius:10px;border:1px solid var(--bdr);background:transparent;color:var(--mu);cursor:pointer}
+.wlpage-tab.active{background:var(--acc);color:#000;border-color:var(--acc);font-weight:700}
+
+/* § CACHE INDICATOR */
+.cached-dot{display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--acc2);margin-left:4px;vertical-align:middle;title:'Cached'}
+
 /* toast */
 .toast{position:fixed;bottom:14px;right:14px;background:var(--sur2);border:1px solid var(--bdr);border-radius:5px;padding:9px 12px;font-size:12px;font-family:'IBM Plex Mono',monospace;color:var(--tx);z-index:999;transform:translateY(60px);opacity:0;transition:all .25s;max-width:260px;pointer-events:none}
 .toast.on{transform:translateY(0);opacity:1}
@@ -269,21 +289,23 @@ select.arsel{background:var(--bg);border:1px solid var(--bdr);color:var(--tx);fo
     </div>
     <input type="file" id="fileInput" accept=".txt,.csv">
   </div>
-  <div class="brow" style="align-self:flex-end">
+  <div class="brow" style="align-self:flex-end;flex-wrap:wrap;gap:6px">
     <button class="btn btnp" id="fetchBtn" onclick="dbAddFromInput()">+ Add to DB</button>
-    <button class="btn btnupd" id="updBtn" onclick="fetchAllDb()">&#8635; Fetch All</button>
+    <button class="btn btnupd" id="p1Btn" onclick="runPhase1All()">⚡ Phase 1 — Prices</button>
+    <button class="btn" style="background:transparent;color:#9c6aff;border:1px solid #9c6aff" id="p2Btn" onclick="runPhase2Manual()" disabled>📊 Load Phase 2 Charts</button>
+    <button class="btn" style="background:transparent;color:#00c853;border:1px solid #00c853" id="newBtn" onclick="fetchRecentlyAdded()" disabled>✦ Fetch New Only</button>
     <button class="btn btns" id="pauseBtn" onclick="togglePause()" disabled>Pause</button>
     <button class="btn btns" id="stopBtn" onclick="stopFetch()" disabled>Stop</button>
-    <button class="btn btns" onclick="clearAll()">Clear Screen</button>
-    <button class="btn btng" onclick="openWLModal()">&#9733; Watchlists</button>
+    <button class="btn btns" onclick="clearAll()">Clear</button>
+    <button class="btn btng" onclick="openWatchlistPage()">★ Watchlist Charts</button>
     <div class="arwrap">
-      <label for="arSel">Auto:</label>
+      <label for="arSel">Auto P1:</label>
       <select class="arsel" id="arSel" onchange="setAutoRefresh()">
         <option value="0">Off</option>
         <option value="15">15 min</option>
         <option value="60">1 hr</option>
       </select>
-      <span class="arind" id="arInd" title="Auto-refresh indicator"></span>
+      <span class="arind" id="arInd"></span>
     </div>
   </div>
 </div>
@@ -293,7 +315,7 @@ select.arsel{background:var(--bg);border:1px solid var(--bdr);color:var(--tx);fo
 <div class="dbpanel" id="dbPanel">
   <div class="dblbl">MY STOCKS <span id="dbTotalLbl" style="color:var(--acc)"></span></div>
   <div class="dbchips" id="dbChips"></div>
-  <button class="btn btnupd" style="font-size:11px;padding:4px 9px;flex-shrink:0" onclick="fetchAllDb()">&#8635; Fetch All</button>
+  <button class="btn btnupd" style="font-size:11px;padding:4px 9px;flex-shrink:0" onclick="runPhase1All()">&#8635; Update Prices</button>
 </div>
 
 <div class="prog" id="progPanel">
@@ -402,10 +424,25 @@ select.arsel{background:var(--bg);border:1px solid var(--bdr);color:var(--tx);fo
   </div>
 </div>
 
-<!-- WATCHLIST MODAL -->
+<!-- WATCHLIST CHARTS PAGE (full screen overlay) -->
+<div id="wlPage" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:500;overflow-y:auto;flex-direction:column">
+  <div style="background:var(--sur);border-bottom:2px solid var(--bdr);padding:10px 14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;flex-shrink:0">
+    <div style="font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:14px">
+      <span style="color:var(--acc)">★</span> WATCHLIST CHARTS
+    </div>
+    <div id="wlPageTabs" style="display:flex;gap:6px;flex-wrap:wrap;flex:1"></div>
+    <button class="btn btns" style="font-size:11px;padding:5px 10px" onclick="closeWatchlistPage()">✕ Close</button>
+  </div>
+  <div id="wlPageGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;padding:14px"></div>
+  <div id="wlPageEmpty" style="display:none;padding:40px;text-align:center;color:var(--mu);font-family:'IBM Plex Mono',monospace">
+    No starred stocks yet. Star stocks in the main table first.
+  </div>
+</div>
+
+<!-- WATCHLIST MANAGE MODAL -->
 <div class="modal-bg" id="wlModal">
   <div class="modal">
-    <h3>&#9733; Watchlists</h3>
+    <h3>&#9733; Manage Watchlists</h3>
     <div class="wl-list" id="wlList"></div>
     <input type="text" id="wlNameInput" placeholder="New watchlist name...">
     <div class="modal-btns">
@@ -554,6 +591,141 @@ function openWLModal(){
 }
 function closeWLModal(){document.getElementById('wlModal').className='modal-bg';}
 document.getElementById('wlModal').addEventListener('click',function(e){if(e.target===this)closeWLModal();});
+
+// ── WATCHLIST CHARTS PAGE ──
+var wlPageActiveTab=null;
+
+function openWatchlistPage(){
+  var ids=Object.keys(watchlists);
+  if(ids.length===0){
+    // Auto-create default watchlist if none
+    var id='wl_'+Date.now();
+    watchlists[id]={name:'My Watchlist',syms:{}};
+    wlSave();renderWLTabs();ids=[id];
+  }
+  document.getElementById('wlPage').style.display='flex';
+  document.body.style.overflow='hidden';
+  if(!wlPageActiveTab||!watchlists[wlPageActiveTab])wlPageActiveTab=ids[0];
+  renderWLPageTabs();
+  renderWLPageCards(wlPageActiveTab);
+}
+
+function closeWatchlistPage(){
+  document.getElementById('wlPage').style.display='none';
+  document.body.style.overflow='';
+}
+
+function renderWLPageTabs(){
+  var ids=Object.keys(watchlists);
+  var h='';
+  for(var i=0;i<ids.length;i++){
+    var id=ids[i],w=watchlists[id];
+    var n=Object.keys(w.syms).length;
+    var active=wlPageActiveTab===id?' active':'';
+    h+='<button class="wlpage-tab'+active+'" onclick="wlPageSwitchTab(\''+id+'\')">'+esc(w.name)+' <span style="opacity:.6">('+n+')</span></button>';
+  }
+  // Add manage button
+  h+='<button class="wlpage-tab" onclick="openWLModal()" style="border-color:var(--acc);color:var(--acc)">+ Manage</button>';
+  document.getElementById('wlPageTabs').innerHTML=h;
+}
+
+function wlPageSwitchTab(id){
+  wlPageActiveTab=id;
+  renderWLPageTabs();
+  renderWLPageCards(id);
+}
+
+function renderWLPageCards(wlId){
+  var grid=document.getElementById('wlPageGrid');
+  var empty=document.getElementById('wlPageEmpty');
+  var wl=watchlists[wlId];
+  if(!wl){grid.innerHTML='';empty.style.display='block';return;}
+
+  var syms=Object.keys(wl.syms);
+  if(syms.length===0){
+    grid.innerHTML='';
+    empty.style.display='block';
+    empty.innerHTML='No stocks in "'+esc(wl.name)+'" yet.<br>Star stocks (☆) in the main table to add them here.';
+    return;
+  }
+  empty.style.display='none';
+
+  var h='';
+  for(var i=0;i<syms.length;i++){
+    var sym=syms[i];
+    // Find stock data in allData
+    var d=null;
+    for(var k=0;k<allData.length;k++){if(allData[k].sym===sym){d=allData[k];break;}}
+
+    var disp=sym.replace('.NS','').replace('.BO','');
+    var priceTxt=d&&d.price?'Rs '+fINR(d.price):'-';
+    var pchTxt='-',pchCls='';
+    if(d&&d.pch!=null){
+      pchTxt=(d.pch>=0?'+':'')+d.pch.toFixed(2)+'%';
+      pchCls=d.pch>=0?'up':'dn';
+    }
+    var nameTxt=d&&d.name?d.name:sym;
+
+    // Sparkline SVG
+    var spkHtml='<div class="wlcard-nodata">No chart data — click Phase 2 Charts</div>';
+    if(d&&d.closes&&d.closes.length>5){
+      var pts=d.closes.slice(-60);
+      spkHtml='<svg viewBox="0 0 260 80" preserveAspectRatio="none">'+buildSpkSvg(pts,d.e20a,pchCls)+'</svg>';
+    }
+
+    // EMA signals
+    var sigs='';
+    if(d){
+      if(d.fbull)sigs+='<span class="wlcard-stat"><span style="color:var(--up)">▲ BULL</span></span>';
+      if(d.fbear)sigs+='<span class="wlcard-stat"><span style="color:var(--dn)">▼ BEAR</span></span>';
+      if(d.anyx)sigs+='<span class="wlcard-stat"><span style="color:var(--acc)">⚡ CROSS</span></span>';
+      if(d.rsi!=null)sigs+='<span class="wlcard-stat">RSI <span>'+d.rsi.toFixed(0)+'</span></span>';
+      if(d.sc!=null)sigs+='<span class="wlcard-stat">Score <span>'+d.sc+'</span></span>';
+    }
+
+    h+='<div class="wlcard">';
+    h+='<div class="wlcard-top">';
+    h+='<div><div class="wlcard-sym">'+esc(disp)+'</div><div class="wlcard-name">'+esc(nameTxt.substring(0,28))+'</div></div>';
+    h+='<div class="wlcard-price"><div class="wlcard-pval">'+priceTxt+'</div><div class="wlcard-pch '+pchCls+'">'+pchTxt+'</div></div>';
+    h+='</div>';
+    h+='<div class="wlcard-chart">'+spkHtml+'</div>';
+    if(sigs)h+='<div class="wlcard-stats">'+sigs+'</div>';
+    h+='<button class="btn btns" style="font-size:10px;padding:3px 8px;align-self:flex-end" onclick="removeFromWL(\''+wlId+'\',\''+sym+'\')">Remove</button>';
+    h+='</div>';
+  }
+  grid.innerHTML=h;
+}
+
+function buildSpkSvg(pts,ema,cls){
+  var mn=Math.min.apply(null,pts),mx=Math.max.apply(null,pts);
+  var rng=mx-mn||1;
+  var W=260,H=80,pad=4;
+  function px(i){return pad+(i/(pts.length-1))*(W-pad*2);}
+  function py(v){return H-pad-(v-mn)/rng*(H-pad*2);}
+  var col=cls==='up'?'#00c853':cls==='dn'?'#ff3d57':'#888';
+  var path='M'+pts.map(function(v,i){return px(i)+','+py(v);}).join('L');
+  var fill=path+'L'+px(pts.length-1)+','+(H-pad)+'L'+px(0)+','+(H-pad)+'Z';
+  var svg='<path d="'+fill+'" fill="'+col+'" fill-opacity=".15"/>';
+  svg+='<path d="'+path+'" stroke="'+col+'" stroke-width="1.5" fill="none"/>';
+  // EMA line
+  if(ema&&ema.length>=pts.length){
+    var e=ema.slice(-pts.length);
+    var ep='M'+e.map(function(v,i){return px(i)+','+py(v);}).join('L');
+    svg+='<path d="'+ep+'" stroke="#ff9933" stroke-width="1" fill="none" stroke-dasharray="3,2"/>';
+  }
+  return svg;
+}
+
+function removeFromWL(wlId,sym){
+  if(watchlists[wlId]&&watchlists[wlId].syms[sym]){
+    delete watchlists[wlId].syms[sym];
+    wlSave();
+    renderWLTabs();
+    renderWLPageCards(wlId);
+    updateStats();applyFilter(false);schedRender();
+  }
+}
+
 
 // § FILE INPUT
 function setSuffix(s){
@@ -828,131 +1000,251 @@ function fetchTicker(sym){
   });
 }
 
-// § FETCH LOOP — 2-Phase System
-// Phase 1: Bulk quotes — all stocks visible in seconds (prices only)
-// Phase 2: Deep chart — EMA/RSI/sparkline loaded per-stock in background
+// § FETCH LOOP — Smart Cache + Manual Phase System
+// CACHE: chart data stored in localStorage per ticker, expires after CACHE_TTL hours
+// Phase 1: bulk prices — always fast, called on open + manual
+// Phase 2: deep charts — only on button click, skips cached tickers
+// fetchRecentlyAdded: only fetches tickers with no cache at all
 
-function startFetch(clearAfter){
-  var raw=document.getElementById('tickerInput').value.trim();
-  if(!raw){showToast('No tickers to fetch','err');return;}
-  var tks=parseTickers(raw);
-  if(!tks.length){showToast('No valid tickers found.','err');return;}
+var CACHE_KEY='spv4_cache';  // {sym: {data:{...}, ts: epoch}}
+var CACHE_TTL=4;             // hours before chart data is considered stale
 
+// ── CACHE HELPERS ──
+function cacheLoad(){
+  try{var s=localStorage.getItem(CACHE_KEY);return s?JSON.parse(s):{};}catch(e){return {};}
+}
+function cacheSave(cache){
+  try{localStorage.setItem(CACHE_KEY,JSON.stringify(cache));}catch(e){}
+}
+function cacheGet(sym){
+  var c=cacheLoad();
+  if(!c[sym])return null;
+  var ageH=(Date.now()-c[sym].ts)/3600000;
+  if(ageH>CACHE_TTL)return null; // expired
+  return c[sym].data;
+}
+function cacheSet(sym,data){
+  var c=cacheLoad();
+  c[sym]={data:data,ts:Date.now()};
+  cacheSave(c);
+}
+function cacheClear(){
+  try{localStorage.removeItem(CACHE_KEY);}catch(e){}
+}
+function cacheHas(sym){return !!cacheGet(sym);}
+
+// ── UI HELPERS ──
+function setFetchingUI(on){
+  document.getElementById('fetchBtn').disabled=on;
+  document.getElementById('p1Btn').disabled=on;
+  document.getElementById('pauseBtn').disabled=!on;
+  document.getElementById('stopBtn').disabled=!on;
+  if(!on){
+    document.getElementById('pauseBtn').textContent='Pause';
+    document.getElementById('progEta').textContent='';
+  }
+}
+
+function initTableUI(tks){
   stopReq=false;pauseReq=false;allData=[];filtered=[];
   t0=Date.now();doneN=0;
-  document.getElementById('fetchBtn').disabled=true;
-  document.getElementById('updBtn').disabled=true;
-  document.getElementById('pauseBtn').disabled=false;
-  document.getElementById('stopBtn').disabled=false;
+  setFetchingUI(true);
   document.getElementById('progPanel').className='prog on';
   document.getElementById('statsBar').style.display='flex';
   document.getElementById('toolbar').style.display='flex';
   document.getElementById('emptyState').style.display='none';
   buildTable();
   setTimeout(fixH,80);
-
-  if(USE_FUNCTION){
-    runTwoPhase(tks,clearAfter);
-  } else {
-    runProxyMode(tks,clearAfter);
-  }
+  setP(0,tks.length,'Starting...');
 }
 
-// ── TWO-PHASE MODE (Netlify Function) ──
-function runTwoPhase(tks,clearAfter){
-  var total=tks.length;
-  var BULK=50; // Yahoo bulk quote limit
-  var bulkBatches=[];
-  for(var b=0;b<tks.length;b+=BULK)bulkBatches.push(tks.slice(b,b+BULK));
+// ── PHASE 1: Load all prices (bulk, fast) ──
+// Called on page load and when user clicks "Phase 1 — Prices"
+function runPhase1All(){
+  var syms=tickerDb.map(function(t){return t.sym;});
+  if(!syms.length){showToast('Add stocks to DB first','err');return;}
 
-  setP(0,total,'Phase 1: Loading prices ('+total+' stocks)...');
+  // Load from cache first for instant display
+  var cached=[];
+  var cache=cacheLoad();
+  for(var i=0;i<syms.length;i++){
+    if(cache[syms[i]]){
+      var d=cache[syms[i]].data;
+      cached.push(d);
+    }
+  }
+  if(cached.length>0){
+    allData=cached;filtered=[];
+    document.getElementById('progPanel').className='prog on';
+    document.getElementById('statsBar').style.display='flex';
+    document.getElementById('toolbar').style.display='flex';
+    document.getElementById('emptyState').style.display='none';
+    buildTable();setTimeout(fixH,80);
+    updateStats();applyFilter(false);
+    setP(cached.length,syms.length,'Loaded '+cached.length+' from cache. Refreshing prices...');
+  }
 
-  // Phase 1: fire all bulk batches with small stagger
+  // Then fetch fresh Phase 1 prices
+  initTableUI(syms);
+  document.getElementById('tickerInput').value=syms.join('\n');
+
+  var BULK=100;
+  var batches=[];
+  for(var b=0;b<syms.length;b+=BULK)batches.push(syms.slice(b,b+BULK));
   var p1done=0;
   var stockMap={};
 
-  Promise.all(bulkBatches.map(function(batch,bi){
-    return sleep(bi*200).then(function(){
+  // Prefill stockMap from cache so cached tickers show immediately
+  for(var s in cache){if(cache[s])stockMap[s]=cache[s].data;}
+
+  setP(0,syms.length,'⚡ Phase 1: Loading prices...');
+
+  Promise.all(batches.map(function(batch,bi){
+    return sleep(bi*150).then(function(){
       return bulkQuote(batch).then(function(map){
-        for(var s in map)stockMap[s]=map[s];
+        for(var sym in map){
+          stockMap[sym]=map[sym];
+          // Merge cached chart data into fresh price data
+          var cached2=cacheGet(sym);
+          if(cached2){
+            stockMap[sym].closes=cached2.closes||[];
+            stockMap[sym].e20a=cached2.e20a||null;
+            stockMap[sym].v20=cached2.v20;stockMap[sym].v50=cached2.v50;
+            stockMap[sym].v100=cached2.v100;stockMap[sym].v200=cached2.v200;
+            stockMap[sym].a20=cached2.a20;stockMap[sym].a50=cached2.a50;
+            stockMap[sym].a100=cached2.a100;stockMap[sym].a200=cached2.a200;
+            stockMap[sym].rsi=cached2.rsi;stockMap[sym].sc=cached2.sc;
+            stockMap[sym].d20=cached2.d20;stockMap[sym].d50=cached2.d50;
+            stockMap[sym].d100=cached2.d100;stockMap[sym].d200=cached2.d200;
+            stockMap[sym].fbull=cached2.fbull;stockMap[sym].fbear=cached2.fbear;
+            stockMap[sym].e20g50=cached2.e20g50;stockMap[sym].e50g100=cached2.e50g100;
+            stockMap[sym].e100g200=cached2.e100g200;
+            stockMap[sym].anyx=cached2.anyx;
+          }
+        }
         p1done+=batch.length;
-        setP(p1done,total,'Phase 1: Prices loaded ('+p1done+'/'+total+')');
-      }).catch(function(e){
-        // If bulk fails (e.g. running locally), mark all in batch as needing proxy
-        for(var i=0;i<batch.length;i++)stockMap[batch[i]]={sym:batch[i],name:batch[i],err:'bulk failed',phase:0,closes:[],e20a:null,sc:0,d20:0,d50:0,d100:0,d200:0};
-        USE_FUNCTION=false; // switch to proxy mode for phase 2
+        // Rebuild allData in DB order
+        allData=syms.map(function(sym){
+          return stockMap[sym]||{sym:sym,name:sym,err:'Not found',closes:[],e20a:null,sc:0,d20:0,d50:0,d100:0,d200:0};
+        });
+        updateStats();applyFilter(false);
+        setP(p1done,syms.length,'⚡ Phase 1: '+p1done+'/'+syms.length+' prices loaded');
+      }).catch(function(){
+        p1done+=batch.length;
+        USE_FUNCTION=false;
       });
     });
   })).then(function(){
-    if(stopReq){finishFetch(clearAfter);return;}
-
-    // Populate allData from phase 1 results — table shows immediately
-    allData=tks.map(function(sym){
-      return stockMap[sym]||{sym:sym,name:sym,err:'Not returned',phase:0,closes:[],e20a:null,sc:0,d20:0,d50:0,d100:0,d200:0};
+    allData=syms.map(function(sym){
+      return stockMap[sym]||{sym:sym,name:sym,err:'No data',closes:[],e20a:null,sc:0,d20:0,d50:0,d100:0,d200:0};
     });
     updateStats();applyFilter(false);
-    showToast('Phase 1 done — '+allData.length+' prices loaded. Loading charts...','ok');
-
-    // Phase 2: deep chart per ticker — 10 concurrent, no stagger needed (server-side)
-    var CONC=10;
-    var idx2=0;
-    var done2=0;
-
-    setP(0,total,'Phase 2: Loading charts (EMA/RSI/sparklines)...');
-
-    function nextDeep(){
-      if(stopReq||idx2>=tks.length){
-        finishFetch(clearAfter);
-        return;
-      }
-      if(pauseReq){setTimeout(nextDeep,300);return;}
-
-      var batch=tks.slice(idx2,idx2+CONC);
-      idx2+=CONC;
-
-      var fetchers=batch.map(function(sym){
-        var fetchFn=USE_FUNCTION
-          ?deepChart(sym).then(function(raw){return parseChartJson(sym,raw);})
-          :fetchTicker(sym);
-        return fetchFn.then(function(obj){
-          // Update existing row in allData
-          for(var k=0;k<allData.length;k++){
-            if(allData[k].sym===sym){allData[k]=obj;break;}
-          }
-          done2++;
-          setP(done2,total,'Phase 2: Charts ('+done2+'/'+total+')');
-          updateStats();applyFilter(false);
-        }).catch(function(){done2++;});
-      });
-
-      Promise.all(fetchers).then(function(){
-        setTimeout(nextDeep,idx2<tks.length?300:0);
-      });
-    }
-    nextDeep();
+    setFetchingUI(false);
+    document.getElementById('progPanel').className='prog';
+    document.getElementById('tickerInput').value='';
+    // Enable Phase 2 and New Only buttons
+    document.getElementById('p2Btn').disabled=false;
+    document.getElementById('newBtn').disabled=false;
+    var uncached=syms.filter(function(s){return !cacheHas(s);}).length;
+    document.getElementById('lastUpd').textContent='P1 done: '+new Date().toLocaleTimeString('en-IN');
+    showToast('⚡ Prices loaded! '+uncached+' stocks need Phase 2 charts.', 'ok');
   });
 }
 
-// ── PROXY FALLBACK MODE (no Netlify Function) ──
+// ── PHASE 2: Deep charts (EMA/RSI/sparklines) — MANUAL ONLY ──
+// Skips any ticker already cached. Only fetches what's missing.
+function runPhase2Manual(){
+  var syms=tickerDb.map(function(t){return t.sym;});
+  var toFetch=syms.filter(function(s){return !cacheHas(s);});
+  if(!toFetch.length){
+    showToast('All charts already cached! ✓','ok');return;
+  }
+  showToast('📊 Loading '+toFetch.length+' charts...','');
+  setFetchingUI(true);
+  document.getElementById('p2Btn').disabled=true;
+  setP(0,toFetch.length,'📊 Phase 2: Loading '+toFetch.length+' charts...');
+
+  var CONC=USE_FUNCTION?20:3;
+  var idx=0,done=0;
+
+  function nextBatch(){
+    if(stopReq||idx>=toFetch.length){
+      setFetchingUI(false);
+      document.getElementById('p2Btn').disabled=false;
+      document.getElementById('progPanel').className='prog';
+      setP(done,toFetch.length,'📊 Charts complete — '+done+' loaded');
+      document.getElementById('lastUpd').textContent='P2 done: '+new Date().toLocaleTimeString('en-IN');
+      showToast('📊 '+done+' charts loaded and cached!','ok');
+      return;
+    }
+    if(pauseReq){setTimeout(nextBatch,300);return;}
+    var batch=toFetch.slice(idx,idx+CONC);idx+=CONC;
+
+    Promise.all(batch.map(function(sym){
+      var fn=USE_FUNCTION
+        ?deepChart(sym).then(function(raw){return parseChartJson(sym,raw);})
+        :fetchTicker(sym);
+      return fn.then(function(obj){
+        cacheSet(sym,obj); // save to cache
+        // Update row in allData
+        for(var k=0;k<allData.length;k++){
+          if(allData[k].sym===sym){allData[k]=obj;break;}
+        }
+        done++;
+        setP(done,toFetch.length,'📊 Phase 2: '+done+'/'+toFetch.length);
+        updateStats();applyFilter(false);
+      }).catch(function(){done++;});
+    })).then(function(){
+      setTimeout(nextBatch,idx<toFetch.length?200:0);
+    });
+  }
+  nextBatch();
+}
+
+// ── FETCH RECENTLY ADDED — only new tickers with zero cache ──
+function fetchRecentlyAdded(){
+  var syms=tickerDb.map(function(t){return t.sym;});
+  var newSyms=syms.filter(function(s){return !cacheHas(s);});
+  if(!newSyms.length){showToast('No new stocks to fetch — all cached ✓','ok');return;}
+  showToast('✦ Fetching '+newSyms.length+' new stocks...','ok');
+
+  // Phase 1 for new ones
+  setFetchingUI(true);
+  var BULK=100;
+  var batches=[];
+  for(var b=0;b<newSyms.length;b+=BULK)batches.push(newSyms.slice(b,b+BULK));
+  var done=0;
+  setP(0,newSyms.length,'✦ Fetching '+newSyms.length+' new stocks...');
+
+  Promise.all(batches.map(function(batch,bi){
+    return sleep(bi*150).then(function(){
+      return bulkQuote(batch).then(function(map){
+        for(var sym in map){
+          // Add to allData
+          var exists=false;
+          for(var k=0;k<allData.length;k++){if(allData[k].sym===sym){allData[k]=map[sym];exists=true;break;}}
+          if(!exists)allData.push(map[sym]);
+        }
+        done+=batch.length;
+        setP(done,newSyms.length,'✦ New: '+done+'/'+newSyms.length);
+        updateStats();applyFilter(false);
+      });
+    });
+  })).then(function(){
+    setFetchingUI(false);
+    document.getElementById('progPanel').className='prog';
+    document.getElementById('p2Btn').disabled=false;
+    showToast('✦ '+newSyms.length+' new stocks loaded! Click Phase 2 for charts.','ok');
+  });
+}
+
+// ── PROXY FALLBACK MODE ──
 function runProxyMode(tks,clearAfter){
   var total=tks.length;
   setP(0,total,'Fetching via proxy...');
   var i=0;
   function nextBatch(){
-    if(stopReq||i>=tks.length){
-      var failed=allData.filter(function(d){return d.err;});
-      if(!stopReq&&failed.length>0){
-        setP(i,total,'Retrying '+failed.length+' failed...');
-        var retrySym=failed.map(function(d){return d.sym;});
-        allData=allData.filter(function(d){return !d.err;});
-        Promise.all(retrySym.map(fetchTicker)).then(function(results){
-          for(var j=0;j<results.length;j++)allData.push(results[j]);
-          finishFetch(clearAfter);
-        });
-        return;
-      }
-      finishFetch(clearAfter);return;
-    }
+    if(stopReq||i>=tks.length){finishFetch(clearAfter);return;}
     if(pauseReq){setTimeout(nextBatch,300);return;}
     var batch=tks.slice(i,i+BSIZ);i+=BSIZ;
     Promise.all(batch.map(function(sym,bi){
@@ -972,24 +1264,34 @@ function finishFetch(clearAfter){
   var ok=allData.filter(function(d){return !d.err;}).length;
   var errs=allData.length-ok;
   setP(allData.length,allData.length,'Complete');
-  document.getElementById('fetchBtn').disabled=false;
-  document.getElementById('updBtn').disabled=false;
-  document.getElementById('pauseBtn').disabled=true;
-  document.getElementById('stopBtn').disabled=true;
-  document.getElementById('progEta').textContent='';
-  document.getElementById('pauseBtn').textContent='Pause';
+  setFetchingUI(false);
   document.getElementById('lastUpd').textContent='Updated: '+new Date().toLocaleTimeString('en-IN');
   if(clearAfter)document.getElementById('tickerInput').value='';
   updateStats();applyFilter(false);
-  var msg=ok+' loaded';
-  if(errs>0)msg+=' | '+errs+' failed';
-  showToast(msg,errs===0?'ok':'');
+  showToast(ok+' loaded'+(errs?' | '+errs+' failed':''),errs===0?'ok':'');
+}
+
+// Legacy startFetch kept for proxy fallback mode
+function startFetch(clearAfter){
+  var raw=document.getElementById('tickerInput').value.trim();
+  if(!raw){return;}
+  var tks=parseTickers(raw);
+  if(!tks.length){return;}
+  stopReq=false;pauseReq=false;allData=[];filtered=[];
+  t0=Date.now();doneN=0;
+  setFetchingUI(true);
+  document.getElementById('progPanel').className='prog on';
+  document.getElementById('statsBar').style.display='flex';
+  document.getElementById('toolbar').style.display='flex';
+  document.getElementById('emptyState').style.display='none';
+  buildTable();setTimeout(fixH,80);
+  runProxyMode(tks,clearAfter);
 }
 
 function togglePause(){
   pauseReq=!pauseReq;
   document.getElementById('pauseBtn').textContent=pauseReq?'Resume':'Pause';
-  document.getElementById('progSt').textContent=pauseReq?'Paused':'Fetching...';
+  document.getElementById('progSt').textContent=pauseReq?'Paused':'Running...';
 }
 function stopFetch(){
   stopReq=true;pauseReq=false;
@@ -998,7 +1300,6 @@ function stopFetch(){
   document.getElementById('pauseBtn').textContent='Pause';
 }
 function clearAll(){
-  // Clears screen results only — DB is never erased
   allData=[];filtered=[];
   if(arTimer){clearInterval(arTimer);arTimer=null;}
   document.getElementById('arSel').value='0';
@@ -1008,12 +1309,14 @@ function clearAll(){
   document.getElementById('progPanel').className='prog';
   document.getElementById('lastUpd').textContent='awaiting data';
   document.getElementById('emptyState').style.display='flex';
+  document.getElementById('p2Btn').disabled=true;
+  document.getElementById('newBtn').disabled=true;
   var w=document.getElementById('vtWrap');
   var hw=w.querySelector('.vthw'),bw=w.querySelector('.vtb');
   if(hw)hw.remove();if(bw)bw.remove();
   vtB=null;vtRows=null;vtST=null;vtSB=null;vtHead=null;
   setTimeout(fixH,50);
-  showToast('Screen cleared. DB still has '+tickerDb.length+' stocks.','');
+  showToast('Screen cleared. DB + cache intact.','');
 }
 
 // § PROGRESS
@@ -1199,15 +1502,10 @@ function renderDbPanel(){
 
 // Fetch all tickers currently in the DB
 function fetchAllDb(){
-  if(tickerDb.length===0){showToast('DB is empty — add some tickers first','err');return;}
-  var syms=tickerDb.map(function(t){return t.sym;});
-  // Temporarily put in textarea for startFetch to read, then clear after
-  document.getElementById('tickerInput').value=syms.join('\n');
-  startFetch(true); // true = clear textarea when done
+  runPhase1All();
 }
 
-// Legacy compat — keep saveTickers/loadTickers/clearTickers/restoreAndFetch as no-ops
-// since DB panel now owns persistence
+// Legacy compat stubs
 function saveTickers(){}
 function loadTickers(){return '';}
 function clearTickers(){}
@@ -1215,27 +1513,14 @@ function restoreAndFetch(){
   dbLoad();
   renderDbPanel();
   if(tickerDb.length>0){
-    showToast('Loaded '+tickerDb.length+' stocks from DB — fetching...','ok');
-    setTimeout(fetchAllDb,700);
+    // Auto Phase 1 on open — instant from cache, then refresh prices
+    setTimeout(runPhase1All, 400);
   }
 }
+function updateAll(){runPhase1All();}
 
-// Re-fetch all currently stored tickers with fresh data
-function updateAll(){
-  if(tickerDb.length>0){fetchAllDb();}
-  else{
-    var raw=document.getElementById('tickerInput').value.trim();
-    if(!raw){showToast('No tickers to update.','err');return;}
-    allData=[];filtered=[];
-    startFetch(false);
-  }
-}
-
-// § AUTO REFRESH
-// Sets up a repeating timer to call updateAll() automatically.
-// Interval is in minutes; 0 = off.
+// § AUTO REFRESH — auto runs Phase 1 only (prices, fast)
 function setAutoRefresh(){
-  // Clear any existing timer
   if(arTimer){clearInterval(arTimer);arTimer=null;}
   var mins=parseInt(document.getElementById('arSel').value,10);
   var ind=document.getElementById('arInd');
@@ -1245,12 +1530,10 @@ function setAutoRefresh(){
     return;
   }
   ind.className='arind on';
-  showToast('Auto-refresh every '+mins+' min','ok');
+  showToast('Auto P1 refresh every '+mins+' min','ok');
   arTimer=setInterval(function(){
-    // Only refresh if not already fetching
-    if(!document.getElementById('fetchBtn').disabled){
-      showToast('Auto-refreshing...','');
-      updateAll();
+    if(!document.getElementById('p1Btn').disabled){
+      runPhase1All();
     }
   },mins*60*1000);
 }
@@ -1554,7 +1837,7 @@ function showToast(msg,type){
 // § INIT
 wlLoad();
 renderWLTabs();
-restoreAndFetch(); // loads DB, renders chips, auto-fetches if DB has tickers
+restoreAndFetch(); // loads DB → shows chips → auto runs Phase 1 (cached = instant)
 </script>
 </body>
 </html>
