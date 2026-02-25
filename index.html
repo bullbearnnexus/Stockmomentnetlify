@@ -586,7 +586,7 @@ function parseTickers(raw){
 }
 
 // § NETWORK
-var USE_FUNCTION = false; // true only after Netlify Function is deployed
+var USE_FUNCTION = true; // Netlify Function deployed — using fast server-side fetch
 var FUNCTION_URL = '/.netlify/functions/quote';
 
 function sleep(ms){return new Promise(function(r){setTimeout(r,ms);});}
