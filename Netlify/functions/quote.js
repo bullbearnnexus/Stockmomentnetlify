@@ -1,7 +1,6 @@
 // netlify/functions/quote.js
-// Handles two modes:
-//   ?sym=TCS.NS        → single chart (1 year history, for EMA/RSI/sparkline)
-//   ?syms=TCS.NS,INFY.NS,...  → bulk quote (prices for up to 100 symbols at once)
+// ?syms=TCS.NS,INFY.NS,...  → bulk prices (up to 100 symbols)
+// ?sym=TCS.NS               → full 1-year chart (EMA/RSI/sparkline)
 
 const https = require('https');
 
@@ -11,20 +10,20 @@ exports.handler = async function(event) {
   // ── BULK QUOTE MODE ──
   if (p.syms) {
     const syms = p.syms.split(',').slice(0, 100).map(s => s.trim()).filter(Boolean);
-    if (!syms.length) return err(400, 'No symbols');
-    const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${syms.map(encodeURIComponent).join(',')}&fields=shortName,longName,regularMarketPrice,regularMarketPreviousClose,regularMarketChangePercent,regularMarketVolume,fiftyTwoWeekHigh,fiftyTwoWeekLow,marketCap`;
-    try {
-      const body = await get(url);
-      return ok(body);
-    } catch(e) {
-      // try query2
-      try {
-        const body2 = await get(url.replace('query1','query2'));
-        return ok(body2);
-      } catch(e2) {
-        return err(502, 'Yahoo bulk quote failed: ' + e2.message);
-      }
+    if (!syms.length) return errResp(400, 'No symbols');
+
+    // Try v8 chart with 5d range for each symbol in parallel batches
+    // v8 is reliable; v7 quoteResponse is deprecated/blocked by Yahoo
+    const CONC = 10;
+    const results = [];
+    for (let i = 0; i < syms.length; i += CONC) {
+      const batch = syms.slice(i, i + CONC);
+      const fetched = await Promise.all(batch.map(sym => fetchQuote(sym)));
+      results.push(...fetched);
     }
+    const map = {};
+    results.forEach(r => { if (r) map[r.symbol] = r; });
+    return okResp(JSON.stringify({ quoteResponse: { result: results.filter(Boolean) } }));
   }
 
   // ── SINGLE CHART MODE ──
@@ -34,49 +33,74 @@ exports.handler = async function(event) {
       try {
         const url = `https://${host}/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=1y&includePrePost=false`;
         const body = await get(url);
-        return ok(body);
-      } catch(e) { /* try next host */ }
+        return okResp(body);
+      } catch(e) { /* try next */ }
     }
-    return err(502, 'Yahoo chart failed for ' + p.sym);
+    return errResp(502, 'Chart failed for ' + p.sym);
   }
 
-  return err(400, 'Provide ?sym= or ?syms=');
+  return errResp(400, 'Provide ?sym= or ?syms=');
 };
 
-function ok(body) {
+// Fetch a single symbol's quote using v8 chart (5d) — always works
+async function fetchQuote(sym) {
+  for (const host of ['query1.finance.yahoo.com', 'query2.finance.yahoo.com']) {
+    try {
+      const url = `https://${host}/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=5d&includePrePost=false`;
+      const body = await get(url);
+      const json = JSON.parse(body);
+      const res = json.chart && json.chart.result && json.chart.result[0];
+      if (!res) continue;
+      const meta = res.meta || {};
+      const q = (res.indicators && res.indicators.quote && res.indicators.quote[0]) || {};
+      const closes = (q.close || []).filter(v => v != null);
+      const prev = closes.length >= 2 ? closes[closes.length - 2] : meta.chartPreviousClose;
+      const price = meta.regularMarketPrice || (closes.length ? closes[closes.length - 1] : null);
+      const pch = price && prev ? (price - prev) / prev * 100 : null;
+      return {
+        symbol: meta.symbol || sym,
+        shortName: meta.shortName || meta.longName || sym,
+        longName: meta.longName || meta.shortName || sym,
+        regularMarketPrice: price,
+        regularMarketPreviousClose: prev,
+        regularMarketChangePercent: pch,
+        regularMarketVolume: meta.regularMarketVolume || (q.volume ? q.volume[q.volume.length - 1] : null),
+        fiftyTwoWeekHigh: meta.fiftyTwoWeekHigh || (closes.length ? Math.max(...closes) : null),
+        fiftyTwoWeekLow: meta.fiftyTwoWeekLow || (closes.length ? Math.min(...closes) : null),
+        marketCap: meta.marketCap || null,
+      };
+    } catch(e) { /* try next host */ }
+  }
+  return null; // symbol not found
+}
+
+function okResp(body) {
   return {
     statusCode: 200,
     headers: {
       'Content-Type': 'application/json',
       'Access-Control-Allow-Origin': '*',
-      'Cache-Control': 'public, max-age=600'   // cache 10 min
+      'Cache-Control': 'public, max-age=300'
     },
     body
   };
 }
-
-function err(code, msg) {
-  return {
-    statusCode: code,
-    headers: { 'Access-Control-Allow-Origin': '*' },
-    body: JSON.stringify({ error: msg })
-  };
+function errResp(code, msg) {
+  return { statusCode: code, headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify({ error: msg }) };
 }
-
 function get(url) {
   return new Promise((resolve, reject) => {
     const req = https.get(url, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120',
-        'Accept': 'application/json, text/plain, */*',
-        'Accept-Language': 'en-US,en;q=0.9'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/122',
+        'Accept': 'application/json',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Referer': 'https://finance.yahoo.com/'
       },
-      timeout: 15000
+      timeout: 12000
     }, res => {
-      if (res.statusCode !== 200) {
-        reject(new Error(`HTTP ${res.statusCode}`));
-        return;
-      }
+      if (res.statusCode === 429) { reject(new Error('Rate limited')); return; }
+      if (res.statusCode !== 200) { reject(new Error(`HTTP ${res.statusCode}`)); return; }
       let body = '';
       res.on('data', c => body += c);
       res.on('end', () => resolve(body));
