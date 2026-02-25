@@ -293,7 +293,7 @@ select.arsel{background:var(--bg);border:1px solid var(--bdr);color:var(--tx);fo
     <button class="btn btnp" id="fetchBtn" onclick="addAndFetch()">+ Add to DB &amp; Fetch</button>
     <button class="btn btnupd" id="p1Btn" onclick="refreshAllPrices()">⟳ Update All Prices</button>
     <button class="btn" style="background:transparent;color:#9c6aff;border:1px solid #9c6aff" id="p2Btn" onclick="runPhase2Manual()">📊 Load Charts</button>
-    <button class="btn btns" id="pauseBtn" onclick="togglePause()" disabled>Pause</button>
+    <button class="btn btns" id="retryBtn" onclick="retryFailed()" style="display:none;color:#ffb300;border-color:#ffb300">⟳ Retry Failed</button>
     <button class="btn btns" id="stopBtn" onclick="stopFetch()" disabled>Stop</button>
     <button class="btn btns" onclick="clearAll()">Clear</button>
     <button class="btn btng" onclick="openWatchlistPage()">★ Watchlist</button>
@@ -772,7 +772,7 @@ function ftTimeout(url,ms){
 // ── PHASE 1: Bulk quote via Netlify Function ──
 function bulkQuote(syms){
   var url=FUNCTION_URL+'?syms='+encodeURIComponent(syms.join(','));
-  return ftTimeout(url,15000).then(function(r){
+  return ftTimeout(url,45000).then(function(r){
     if(!r.ok)throw new Error('Function error '+r.status);
     return r.json();
   }).then(function(data){
@@ -917,6 +917,7 @@ function drawSparkline(closes,ema20arr,w,h){
 // § FETCH TICKER
 // Parses Yahoo chart JSON (from either Netlify Function or CORS proxy) into stock object
 function parseChartJson(sym, raw){
+  try{
   var data=JSON.parse(raw);
   if(data&&data.chart&&data.chart.error)throw new Error(data.chart.error.description||'API error');
   var res=data&&data.chart&&data.chart.result&&data.chart.result[0];
@@ -988,6 +989,9 @@ function parseChartJson(sym, raw){
     anyx:anyx,fbull:fbull,fbear:fbear,e20g50:e20g50,e50g100:e50g100,e100g200:e100g200,
     d20:d20,d50:d50,d100:d100,d200:d200,rsi:rsi,sc:sc,
     closes:cl,e20a:e20a,phase:2,err:null};
+  }catch(e){
+    return{sym:sym,name:sym,err:e.message||'Parse error',sc:0,d20:0,d50:0,d100:0,d200:0,closes:[],e20a:null,phase:2};
+  }
 }
 
 // Single ticker fetch (CORS proxy fallback mode)
@@ -1007,17 +1011,29 @@ function fetchTicker(sym){
 
 var CACHE_KEY='spv4_cache';
 var CACHE_TTL=4; // hours
+var _cache=null; // in-memory cache — loaded once
 
-function cacheLoad(){try{var s=localStorage.getItem(CACHE_KEY);return s?JSON.parse(s):{};}catch(e){return {};}}
-function cacheSave(c){try{localStorage.setItem(CACHE_KEY,JSON.stringify(c));}catch(e){}}
+function cacheLoad(){
+  if(_cache)return _cache;
+  try{var s=localStorage.getItem(CACHE_KEY);_cache=s?JSON.parse(s):{};}catch(e){_cache={};}
+  return _cache;
+}
+function cacheSave(){
+  try{localStorage.setItem(CACHE_KEY,JSON.stringify(_cache));}catch(e){}
+}
 function cacheGet(sym){
   var c=cacheLoad();
   if(!c[sym])return null;
-  if((Date.now()-c[sym].ts)/3600000>CACHE_TTL)return null;
+  if((Date.now()-c[sym].ts)/3600000>CACHE_TTL){delete c[sym];return null;}
   return c[sym].data;
 }
-function cacheSet(sym,data){var c=cacheLoad();c[sym]={data:data,ts:Date.now()};cacheSave(c);}
+function cacheSet(sym,data){
+  var c=cacheLoad();
+  c[sym]={data:data,ts:Date.now()};
+  cacheSave();
+}
 function cacheHas(sym){return !!cacheGet(sym);}
+function cacheClearAll(){_cache={};try{localStorage.removeItem(CACHE_KEY);}catch(e){}}
 
 function setFetchingUI(on){
   document.getElementById('fetchBtn').disabled=on;
@@ -1122,10 +1138,17 @@ function fetchPrices(syms, onDone){
             map[sym].anyx=ch.anyx;map[sym].wvol=ch.wvol;map[sym].awg=ch.awg;
             map[sym].mvol=ch.mvol;map[sym].amg=ch.amg;map[sym].wr=ch.wr;map[sym].mr=ch.mr;
           }
-          stockMap[sym]=map[sym]; // update in stockMap
+          stockMap[sym]=map[sym];
+        }
+        // Mark any symbols in this batch NOT returned by Yahoo as errors
+        for(var bi2=0;bi2<batch.length;bi2++){
+          var s=batch[bi2];
+          if(!map[s] && !cacheGet(s)){
+            stockMap[s]={sym:s,name:s,err:'Not found on Yahoo — check symbol',
+              closes:[],e20a:null,sc:0,d20:0,d50:0,d100:0,d200:0,phase:0};
+          }
         }
         done+=batch.length;
-        // Always rebuild allData from full DB order — never drop a row
         allData=allDbSyms.map(function(s){return stockMap[s];});
         setP(done,syms.length,'Prices: '+done+'/'+syms.length);
         updateStats();applyFilter(false);
@@ -1211,6 +1234,19 @@ function finishFetch(){
   updateStats();applyFilter(false);
 }
 
+// Retry only stocks that errored — useful for symbol typos or transient failures
+function retryFailed(){
+  var failed=allData.filter(function(d){return d.err&&d.err.indexOf('Not found')<0;}).map(function(d){return d.sym;});
+  // For "not found" symbols, just show a helpful toast
+  var notFound=allData.filter(function(d){return d.err&&d.err.indexOf('Not found')>=0;});
+  if(notFound.length){
+    var names=notFound.map(function(d){return d.sym.replace('.NS','').replace('.BO','');}).join(', ');
+    showToast('Symbol not on Yahoo: '+names+' — check spelling','err');
+  }
+  if(!failed.length){if(!notFound.length)showToast('No retryable errors','');return;}
+  fetchPrices(failed,function(){showToast('Retry complete','ok');});
+}
+
 // Legacy stubs
 function startFetch(){}
 function fetchAllDb(){refreshAllPrices();}
@@ -1266,10 +1302,11 @@ function setP(done,total,st){
 }
 function updateStats(){
   var ok=[],i;for(i=0;i<allData.length;i++)if(!allData[i].err)ok.push(allData[i]);
+  var errCount=allData.length-ok.length;
   function cnt(fn){var n=0;for(var i=0;i<ok.length;i++)if(fn(ok[i]))n++;return n;}
   document.getElementById('sTot').textContent=allData.length;
   document.getElementById('sOk').textContent=ok.length;
-  document.getElementById('sErr').textContent=allData.length-ok.length;
+  document.getElementById('sErr').textContent=errCount;
   document.getElementById('sFB').textContent=cnt(function(d){return d.fbull;});
   document.getElementById('sBear').textContent=cnt(function(d){return d.fbear;});
   document.getElementById('sCross').textContent=cnt(function(d){return d.anyx;});
@@ -1278,6 +1315,9 @@ function updateStats(){
   document.getElementById('sStack').textContent=cnt(function(d){return d.e20g50&&d.e50g100&&d.e100g200;});
   document.getElementById('sStarred').textContent=Object.keys(wlStarred()).length;
   document.getElementById('sTime').textContent=new Date().toLocaleTimeString('en-IN');
+  // Show retry button only when there are errors
+  var rb=document.getElementById('retryBtn');
+  if(rb)rb.style.display=errCount>0?'inline-flex':'none';
 }
 
 // § LAYOUT
@@ -1431,11 +1471,6 @@ function renderDbPanel(){
   }
   chips.innerHTML=h;
   if(typeof fixH==='function')fixH();
-}
-
-// Fetch all tickers currently in the DB
-function fetchAllDb(){
-  runPhase1All();
 }
 
 // Legacy compat stubs
