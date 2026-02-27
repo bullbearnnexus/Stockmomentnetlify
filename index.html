@@ -769,34 +769,47 @@ function ftTimeout(url,ms){
   });
 }
 
-// ── PHASE 1: Bulk quote via Netlify Function ──
-function bulkQuote(syms){
-  var url=FUNCTION_URL+'?syms='+encodeURIComponent(syms.join(','));
-  return ftTimeout(url,45000).then(function(r){
-    if(!r.ok)throw new Error('Function error '+r.status);
-    return r.json();
-  }).then(function(data){
-    var quotes=(data.quoteResponse&&data.quoteResponse.result)||[];
-    var map={};
-    for(var i=0;i<quotes.length;i++){
-      var q=quotes[i];
-      map[q.symbol]={
-        sym:q.symbol,name:q.shortName||q.longName||q.symbol,
-        price:q.regularMarketPrice||null,prev:q.regularMarketPreviousClose||null,
-        pch:q.regularMarketChangePercent||null,
-        hi52:q.fiftyTwoWeekHigh||null,lo52:q.fiftyTwoWeekLow||null,
-        mcap:q.marketCap?q.marketCap/1e7:null,todV:q.regularMarketVolume||null,
-        pfh:q.regularMarketPrice&&q.fiftyTwoWeekHigh?(q.regularMarketPrice-q.fiftyTwoWeekHigh)/q.fiftyTwoWeekHigh*100:null,
-        pfl:q.regularMarketPrice&&q.fiftyTwoWeekLow?(q.regularMarketPrice-q.fiftyTwoWeekLow)/q.fiftyTwoWeekLow*100:null,
+// ── BULK QUOTE: direct Yahoo fetch, all batches parallel, live progress ──
+var _YH=['https://query1.finance.yahoo.com','https://query2.finance.yahoo.com'];
+var _yhIdx=0;
+
+function fetchOnePrice(sym){
+  var host=_YH[(_yhIdx++)%2];
+  var url=host+'/v8/finance/chart/'+encodeURIComponent(sym)+'?interval=1d&range=5d&includePrePost=false';
+  return ftTimeout(url,10000)
+    .then(function(r){return r.json();})
+    .catch(function(){
+      return ftTimeout(_YH[(_yhIdx++)%2]+'/v8/finance/chart/'+encodeURIComponent(sym)+'?interval=1d&range=5d&includePrePost=false',10000)
+        .then(function(r){return r.json();});
+    })
+    .then(function(j){
+      var res=j.chart&&j.chart.result&&j.chart.result[0];
+      if(!res)return null;
+      var m=res.meta||{};
+      var q=(res.indicators&&res.indicators.quote&&res.indicators.quote[0])||{};
+      var cl=(q.close||[]).filter(function(v){return v!=null;});
+      var price=m.regularMarketPrice||(cl.length?cl[cl.length-1]:null);
+      var prev=m.chartPreviousClose||(cl.length>=2?cl[cl.length-2]:null);
+      if(!price)return null;
+      return{sym:sym,name:m.shortName||m.longName||sym,price:price,prev:prev,
+        pch:prev?(price-prev)/prev*100:null,
+        hi52:m.fiftyTwoWeekHigh||null,lo52:m.fiftyTwoWeekLow||null,
+        mcap:m.marketCap?m.marketCap/1e7:null,todV:m.regularMarketVolume||null,
+        pfh:price&&m.fiftyTwoWeekHigh?(price-m.fiftyTwoWeekHigh)/m.fiftyTwoWeekHigh*100:null,
+        pfl:price&&m.fiftyTwoWeekLow?(price-m.fiftyTwoWeekLow)/m.fiftyTwoWeekLow*100:null,
         v20:null,v50:null,v100:null,v200:null,a20:null,a50:null,a100:null,a200:null,
         c20u:false,c20d:false,c50u:false,c50d:false,c100u:false,c100d:false,c200u:false,c200d:false,
         anyx:false,fbull:false,fbear:false,e20g50:null,e50g100:null,e100g200:null,
         d20:0,d50:0,d100:0,d200:0,rsi:null,sc:0,wvol:0,awg:0,mvol:0,amg:0,wr:null,mr:null,
-        closes:[],e20a:null,phase:1,err:null
-      };
-    }
-    return map;
-  });
+        closes:[],e20a:null,phase:1,err:null};
+    }).catch(function(){return null;});
+}
+
+function bulkQuote(syms){
+  var map={};
+  return Promise.all(syms.map(function(sym){
+    return fetchOnePrice(sym).then(function(d){if(d)map[sym]=d;});
+  })).then(function(){return map;});
 }
 
 // ── PHASE 2: Deep chart via Netlify Function ──
@@ -1090,76 +1103,73 @@ function refreshAllPrices(){
 // ── CORE PRICE FETCH — fetches bulk prices, merges chart cache, updates table ──
 function fetchPrices(syms, onDone){
   stopReq=false;pauseReq=false;
-  showTable();
-  if(!vtB)buildTable();
-  setTimeout(fixH,80);
-  setFetchingUI(true);
 
-  // Build a full stockMap from ALL db tickers first (cache or placeholder)
-  // so every stock always shows in the table — never disappears
+  // Always work from full DB
   var allDbSyms=tickerDb.map(function(t){return t.sym;});
+  if(!allDbSyms.length){if(onDone)onDone();return;}
+
+  // Build stockMap: cache or placeholder for every DB stock
   var stockMap={};
   for(var i=0;i<allDbSyms.length;i++){
     var s=allDbSyms[i];
     var cached=cacheGet(s);
-    if(cached){
-      stockMap[s]=cached;
-    } else {
-      // placeholder so row appears immediately
-      stockMap[s]={sym:s,name:s,price:null,pch:null,err:null,
-        closes:[],e20a:null,sc:0,d20:0,d50:0,d100:0,d200:0,phase:0};
-    }
+    stockMap[s]=cached||{sym:s,name:s.replace('.NS','').replace('.BO',''),
+      price:null,pch:null,err:null,closes:[],e20a:null,sc:0,d20:0,d50:0,d100:0,d200:0,phase:0};
   }
-  // Render immediately with what we have
+
+  // Setup UI
+  showTable();
+  buildTable(); // always rebuild fresh
+  setFetchingUI(true);
+  setTimeout(fixH,80);
+
+  // Set allData + render AFTER buildTable DOM is ready
   allData=allDbSyms.map(function(s){return stockMap[s];});
-  updateStats();applyFilter(false);
+  filtered=allData.slice();
+  setP(0,syms.length,'Loading prices...');
+  setTimeout(function(){updateStats();schedRender();},50);
+
+  // Fetch all prices in parallel — update table as each arrives
+  var done=0;
   setP(0,syms.length,'Loading prices...');
 
-  var BULK=100,batches=[],done=0;
-  for(var b=0;b<syms.length;b+=BULK)batches.push(syms.slice(b,b+BULK));
-
-  Promise.all(batches.map(function(batch,bi){
-    return sleep(bi*100).then(function(){
-      return bulkQuote(batch).then(function(map){
-        for(var sym in map){
-          var ch=cacheGet(sym);
-          if(ch){
-            map[sym].closes=ch.closes||[];
-            map[sym].e20a=ch.e20a||null;
-            map[sym].v20=ch.v20;map[sym].v50=ch.v50;
-            map[sym].v100=ch.v100;map[sym].v200=ch.v200;
-            map[sym].a20=ch.a20;map[sym].a50=ch.a50;
-            map[sym].a100=ch.a100;map[sym].a200=ch.a200;
-            map[sym].rsi=ch.rsi;map[sym].sc=ch.sc;
-            map[sym].d20=ch.d20;map[sym].d50=ch.d50;
-            map[sym].d100=ch.d100;map[sym].d200=ch.d200;
-            map[sym].fbull=ch.fbull;map[sym].fbear=ch.fbear;
-            map[sym].e20g50=ch.e20g50;map[sym].e50g100=ch.e50g100;map[sym].e100g200=ch.e100g200;
-            map[sym].anyx=ch.anyx;map[sym].wvol=ch.wvol;map[sym].awg=ch.awg;
-            map[sym].mvol=ch.mvol;map[sym].amg=ch.amg;map[sym].wr=ch.wr;map[sym].mr=ch.mr;
-          }
-          stockMap[sym]=map[sym];
+  Promise.all(syms.map(function(sym){
+    return fetchOnePrice(sym).then(function(d){
+      done++;
+      if(d){
+        var ch=cacheGet(sym);
+        if(ch){
+          d.closes=ch.closes||[];d.e20a=ch.e20a||null;
+          d.v20=ch.v20;d.v50=ch.v50;d.v100=ch.v100;d.v200=ch.v200;
+          d.a20=ch.a20;d.a50=ch.a50;d.a100=ch.a100;d.a200=ch.a200;
+          d.rsi=ch.rsi;d.sc=ch.sc;d.d20=ch.d20;d.d50=ch.d50;
+          d.d100=ch.d100;d.d200=ch.d200;d.fbull=ch.fbull;d.fbear=ch.fbear;
+          d.e20g50=ch.e20g50;d.e50g100=ch.e50g100;d.e100g200=ch.e100g200;
+          d.anyx=ch.anyx;d.wvol=ch.wvol;d.awg=ch.awg;
+          d.mvol=ch.mvol;d.amg=ch.amg;d.wr=ch.wr;d.mr=ch.mr;
         }
-        // Mark any symbols in this batch NOT returned by Yahoo as errors
-        for(var bi2=0;bi2<batch.length;bi2++){
-          var s=batch[bi2];
-          if(!map[s] && !cacheGet(s)){
-            stockMap[s]={sym:s,name:s,err:'Not found on Yahoo — check symbol',
-              closes:[],e20a:null,sc:0,d20:0,d50:0,d100:0,d200:0,phase:0};
-          }
-        }
-        done+=batch.length;
-        allData=allDbSyms.map(function(s){return stockMap[s];});
-        setP(done,syms.length,'Prices: '+done+'/'+syms.length);
-        updateStats();applyFilter(false);
-      }).catch(function(){done+=batch.length;setP(done,syms.length,'Retrying...');});
+        stockMap[sym]=d;
+      } else if(!cacheGet(sym)){
+        stockMap[sym]={sym:sym,name:sym.replace('.NS','').replace('.BO',''),
+          err:'Not found on Yahoo',closes:[],e20a:null,sc:0,d20:0,d50:0,d100:0,d200:0,phase:0};
+      }
+      // Live update — rebuild table after every stock arrives
+      allData=allDbSyms.map(function(s){return stockMap[s];});
+      setP(done,syms.length,'Prices: '+done+'/'+syms.length);
+      updateStats();applyFilter(false);
     });
   })).then(function(){
-    // Final render with complete data
     allData=allDbSyms.map(function(s){return stockMap[s];});
     updateStats();applyFilter(false);
     setFetchingUI(false);
     document.getElementById('progPanel').className='prog';
+    if(onDone)onDone();
+  }).catch(function(e){
+    allData=allDbSyms.map(function(s){return stockMap[s];});
+    updateStats();applyFilter(false);
+    setFetchingUI(false);
+    document.getElementById('progPanel').className='prog';
+    showToast('Fetch error: '+e.message,'err');
     if(onDone)onDone();
   });
 }
