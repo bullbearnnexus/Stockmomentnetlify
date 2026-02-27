@@ -1,92 +1,98 @@
 // netlify/functions/quote.js
-// ?syms=TCS.NS,INFY.NS,...  → bulk prices (up to 100 symbols)
-// ?sym=TCS.NS               → full 1-year chart (EMA/RSI/sparkline)
+// ?syms=TCS.NS,INFY.NS  → bulk prices via Yahoo v7 (with v8 fallback per symbol)
+// ?sym=TCS.NS           → full 1yr chart for EMA/RSI
 
 const https = require('https');
 
 exports.handler = async function(event) {
   const p = event.queryStringParameters || {};
 
-  // ── BULK QUOTE MODE ──
+  // ── BULK QUOTE ──
   if (p.syms) {
     const syms = p.syms.split(',').slice(0, 100).map(s => s.trim()).filter(Boolean);
-    if (!syms.length) return errResp(400, 'No symbols');
+    if (!syms.length) return err(400, 'No symbols');
 
-    // Try v8 chart with 5d range for each symbol in parallel batches
-    // v8 is reliable; v7 quoteResponse is deprecated/blocked by Yahoo
-    const CONC = 10;
-    const results = [];
+    // Try Yahoo v7 quote first (fastest — 1 request for all symbols)
+    const v7url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${syms.map(encodeURIComponent).join(',')}&fields=shortName,longName,regularMarketPrice,regularMarketPreviousClose,regularMarketChangePercent,regularMarketVolume,fiftyTwoWeekHigh,fiftyTwoWeekLow,marketCap&formatted=false&lang=en-US&region=US`;
+    
+    for (const host of ['query1', 'query2']) {
+      try {
+        const url = v7url.replace('query1', host);
+        const body = await get(url);
+        const json = JSON.parse(body);
+        const results = json.quoteResponse && json.quoteResponse.result;
+        if (results && results.length > 0) {
+          return ok(body); // v7 worked
+        }
+      } catch(e) {}
+    }
+
+    // v7 returned empty — fall back to v8 chart per symbol (parallel, 5d range)
+    const CONC = 15;
+    const allResults = [];
     for (let i = 0; i < syms.length; i += CONC) {
       const batch = syms.slice(i, i + CONC);
-      const fetched = await Promise.all(batch.map(sym => fetchQuote(sym)));
-      results.push(...fetched);
+      const fetched = await Promise.all(batch.map(sym => fetchV8Quote(sym)));
+      allResults.push(...fetched.filter(Boolean));
     }
-    const map = {};
-    results.forEach(r => { if (r) map[r.symbol] = r; });
-    return okResp(JSON.stringify({ quoteResponse: { result: results.filter(Boolean) } }));
+    return ok(JSON.stringify({ quoteResponse: { result: allResults, error: null } }));
   }
 
-  // ── SINGLE CHART MODE ──
+  // ── SINGLE CHART (1yr for EMA/RSI) ──
   if (p.sym) {
-    const sym = p.sym.trim();
-    for (const host of ['query1.finance.yahoo.com', 'query2.finance.yahoo.com']) {
+    for (const host of ['query1', 'query2']) {
       try {
-        const url = `https://${host}/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=1y&includePrePost=false`;
+        const url = `https://${host}.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(p.sym.trim())}?interval=1d&range=1y&includePrePost=false`;
         const body = await get(url);
-        return okResp(body);
-      } catch(e) { /* try next */ }
+        return ok(body);
+      } catch(e) {}
     }
-    return errResp(502, 'Chart failed for ' + p.sym);
+    return err(502, 'Chart failed: ' + p.sym);
   }
 
-  return errResp(400, 'Provide ?sym= or ?syms=');
+  return err(400, 'Provide ?sym= or ?syms=');
 };
 
-// Fetch a single symbol's quote using v8 chart (5d) — always works
-async function fetchQuote(sym) {
-  for (const host of ['query1.finance.yahoo.com', 'query2.finance.yahoo.com']) {
+async function fetchV8Quote(sym) {
+  for (const host of ['query1', 'query2']) {
     try {
-      const url = `https://${host}/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=5d&includePrePost=false`;
+      const url = `https://${host}.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=5d&includePrePost=false`;
       const body = await get(url);
-      const json = JSON.parse(body);
-      const res = json.chart && json.chart.result && json.chart.result[0];
+      const j = JSON.parse(body);
+      const res = j.chart && j.chart.result && j.chart.result[0];
       if (!res) continue;
       const meta = res.meta || {};
       const q = (res.indicators && res.indicators.quote && res.indicators.quote[0]) || {};
       const closes = (q.close || []).filter(v => v != null);
-      const prev = closes.length >= 2 ? closes[closes.length - 2] : meta.chartPreviousClose;
-      const price = meta.regularMarketPrice || (closes.length ? closes[closes.length - 1] : null);
-      const pch = price && prev ? (price - prev) / prev * 100 : null;
+      const price = meta.regularMarketPrice || (closes.length ? closes[closes.length-1] : null);
+      const prev  = meta.chartPreviousClose || (closes.length >= 2 ? closes[closes.length-2] : null);
+      if (!price) continue;
       return {
         symbol: meta.symbol || sym,
         shortName: meta.shortName || meta.longName || sym,
         longName: meta.longName || meta.shortName || sym,
         regularMarketPrice: price,
         regularMarketPreviousClose: prev,
-        regularMarketChangePercent: pch,
-        regularMarketVolume: meta.regularMarketVolume || (q.volume ? q.volume[q.volume.length - 1] : null),
-        fiftyTwoWeekHigh: meta.fiftyTwoWeekHigh || (closes.length ? Math.max(...closes) : null),
-        fiftyTwoWeekLow: meta.fiftyTwoWeekLow || (closes.length ? Math.min(...closes) : null),
+        regularMarketChangePercent: price && prev ? (price - prev) / prev * 100 : null,
+        regularMarketVolume: meta.regularMarketVolume || null,
+        fiftyTwoWeekHigh: meta.fiftyTwoWeekHigh || null,
+        fiftyTwoWeekLow: meta.fiftyTwoWeekLow || null,
         marketCap: meta.marketCap || null,
       };
-    } catch(e) { /* try next host */ }
+    } catch(e) {}
   }
-  return null; // symbol not found
+  return null;
 }
 
-function okResp(body) {
+function ok(body) {
   return {
     statusCode: 200,
-    headers: {
-      'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': '*',
-      'Cache-Control': 'public, max-age=300'
-    },
+    headers: { 'Content-Type':'application/json', 'Access-Control-Allow-Origin':'*', 'Cache-Control':'public,max-age=300' },
     body
   };
 }
-function errResp(code, msg) {
-  return { statusCode: code, headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify({ error: msg }) };
+function err(code, msg) {
+  return { statusCode: code, headers: {'Access-Control-Allow-Origin':'*'}, body: JSON.stringify({error:msg}) };
 }
 function get(url) {
   return new Promise((resolve, reject) => {
@@ -97,9 +103,8 @@ function get(url) {
         'Accept-Language': 'en-US,en;q=0.9',
         'Referer': 'https://finance.yahoo.com/'
       },
-      timeout: 12000
+      timeout: 10000
     }, res => {
-      if (res.statusCode === 429) { reject(new Error('Rate limited')); return; }
       if (res.statusCode !== 200) { reject(new Error(`HTTP ${res.statusCode}`)); return; }
       let body = '';
       res.on('data', c => body += c);
