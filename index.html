@@ -203,7 +203,6 @@ td { padding: 7px 12px; font-size: 12px; white-space: nowrap; }
 // ─────────────────────────────────────────
 // CONFIG
 // ─────────────────────────────────────────
-var FUNCTION_URL = '/.netlify/functions/quote';
 var DB_KEY = 'sp5_db';      // localStorage key for ticker DB
 var exch = 'NS';             // default exchange suffix
 
@@ -279,13 +278,16 @@ function removeStock(sym) {
 }
 
 // ─────────────────────────────────────────
-// YAHOO FETCH via Netlify function
+// FETCH PRICE — always via Netlify function
+// Function handles Yahoo server-side (no CORS)
 // ─────────────────────────────────────────
+var FUNCTION_URL = '/.netlify/functions/quote';
+
 function fetchPrice(sym) {
   var url = FUNCTION_URL + '?sym=' + encodeURIComponent(sym) + '&range=5d';
-  return fetch(url, { signal: AbortSignal.timeout(15000) })
+  return fetch(url)
     .then(function(r) {
-      if (!r.ok) throw new Error('HTTP ' + r.status);
+      if (!r.ok) throw new Error('Function error ' + r.status);
       return r.json();
     })
     .then(function(json) {
