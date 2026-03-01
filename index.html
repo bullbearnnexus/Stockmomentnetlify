@@ -5,487 +5,1931 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>StockPulse</title>
 <style>
-:root {
-  --bg: #0a0a0f;
-  --bg2: #111118;
-  --bg3: #1a1a24;
-  --border: #2a2a3a;
-  --text: #e8e8f0;
-  --mu: #666680;
-  --acc: #f0a500;
-  --green: #00d68f;
-  --red: #ff4466;
-  --blue: #4488ff;
-}
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body { background: var(--bg); color: var(--text); font-family: 'IBM Plex Mono', monospace; font-size: 13px; }
+:root{--bg:#0a0a0f;--bg2:#111118;--bg3:#1a1a24;--border:#2a2a3a;--text:#e8e8f0;--mu:#55556a;--acc:#f0a500;--green:#00d68f;--red:#ff4466;}
+body.light{--bg:#f0f2f5;--bg2:#ffffff;--bg3:#e8eaf0;--border:#d0d4e0;--text:#1a1a2e;--mu:#8888a0;--acc:#d4890a;--green:#007a50;--red:#cc2244;}
+body.light thead tr.hg1 th{background:#e4e8f0;}
+body.light thead tr.hg2 th{background:#f5f6fa;}
+body.light thead tr.hg3 th{background:#eceef5;}
+body.light tbody tr:hover{background:#eef0f8;}
+body.light td{border-right-color:#e0e4ee;border-bottom-color:#e8eaee;}
+body.light .frz td:nth-child(1),body.light .frz td:nth-child(2),body.light .frz td:nth-child(3){background:#f0f2f5;}
+body.light .frz tbody tr:hover td:nth-child(1),body.light .frz tbody tr:hover td:nth-child(2),body.light .frz tbody tr:hover td:nth-child(3){background:#eef0f8;}
+body.light .yes{background:rgba(0,122,80,.12);}
+body.light .no{background:rgba(204,34,68,.09);}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:13px;}
+#topbar{display:flex;align-items:center;gap:12px;padding:10px 16px;background:var(--bg2);border-bottom:1px solid var(--border);}
+#logo{font-size:15px;font-weight:700;letter-spacing:1px;}
+#logo span{color:var(--acc);}
+#arInfo{font-size:11px;color:var(--green);margin-left:6px;}
+#lastUpd{margin-left:auto;font-size:11px;color:var(--mu);}
+#inp{display:flex;gap:12px;align-items:flex-start;padding:14px 16px;background:var(--bg2);border-bottom:1px solid var(--border);flex-wrap:wrap;}
+textarea{background:var(--bg3);border:1px solid var(--border);color:var(--text);font-family:inherit;font-size:12px;padding:8px 10px;border-radius:4px;resize:none;width:200px;height:80px;outline:none;}
+textarea:focus{border-color:var(--acc);}
+.eb{background:var(--bg3);border:1px solid var(--border);color:var(--mu);font-family:inherit;font-size:11px;padding:5px 12px;border-radius:4px;cursor:pointer;display:block;margin-bottom:6px;width:100px;}
+.eb.on{border-color:var(--acc);color:var(--acc);}
+.btn{background:transparent;border:1px solid var(--border);color:var(--text);font-family:inherit;font-size:12px;padding:7px 14px;border-radius:4px;cursor:pointer;display:block;width:190px;margin-bottom:6px;text-align:left;}
+.btn:hover{border-color:var(--acc);color:var(--acc);}
+.btn.pri{background:var(--acc);border-color:var(--acc);color:#000;font-weight:700;}
+.btn.pri:hover{background:#ffb800;}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+#arSel{background:var(--bg3);border:1px solid var(--border);color:var(--text);font-family:inherit;font-size:11px;padding:5px 8px;border-radius:4px;cursor:pointer;outline:none;width:190px;margin-bottom:6px;}
+#dbpanel{padding:8px 16px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-height:38px;}
+#dblabel{font-size:11px;color:var(--mu);white-space:nowrap;}
+.chip{display:inline-flex;align-items:center;gap:5px;background:var(--bg3);border:1px solid var(--border);border-radius:3px;padding:2px 7px;font-size:11px;margin:2px;}
+.cn{color:var(--mu);font-size:10px;}
+.cx{cursor:pointer;color:var(--mu);}
+.cx:hover{color:var(--red);}
+#toolbar{display:flex;align-items:center;gap:10px;padding:6px 16px;background:var(--bg2);border-bottom:1px solid var(--border);flex-wrap:wrap;}
+#searchBox{background:var(--bg3);border:1px solid var(--border);color:var(--text);font-family:inherit;font-size:12px;padding:5px 10px;border-radius:4px;outline:none;width:220px;}
+#searchBox:focus{border-color:var(--acc);}
+.tbtn{background:transparent;border:1px solid var(--border);color:var(--mu);font-family:inherit;font-size:11px;padding:5px 12px;border-radius:4px;cursor:pointer;}
+.tbtn:hover{border-color:var(--acc);color:var(--acc);}
+.tbtn.on{border-color:var(--acc);color:var(--acc);background:rgba(240,165,0,.07);}
+#freezeBtn.on{border-color:#4af;color:#4af;background:rgba(68,170,255,.07);}
+#cacheNote{font-size:10px;color:var(--mu);margin-left:auto;}
+#cacheNote a{color:var(--acc);text-decoration:none;}
+/* ALERT PANEL */
+#alertPanel{display:none;padding:8px 16px;background:rgba(240,165,0,.05);border-bottom:2px solid rgba(240,165,0,.3);align-items:flex-start;gap:8px;flex-wrap:wrap;}
+#alertPanel.on{display:flex;}
+#alertLabel{font-size:10px;font-weight:700;color:var(--acc);white-space:nowrap;padding-top:2px;}
+#alertItems{display:flex;gap:6px;flex-wrap:wrap;flex:1;}
+.al{font-size:11px;padding:3px 8px;border-radius:3px;background:var(--bg3);border:1px solid var(--border);}
+.al-bull{border-color:var(--green);color:var(--green);}
+.al-bear{border-color:var(--red);color:var(--red);}
+.al-brk{border-color:var(--acc);color:var(--acc);}
+.al-vol{border-color:#4af;color:#4af;}
+.al-phase{border-color:#a0a;color:#d8d;}
+.al-coil{border-color:#f8f;color:#faf;}
+.al-cross{border-color:#0ff;color:#0dd;}
+#sbar{display:none;padding:5px 16px;background:var(--bg2);border-bottom:1px solid var(--border);font-size:11px;color:var(--mu);gap:14px;align-items:center;}
+#sbar.on{display:flex;}
+.sv{color:var(--text);font-weight:600;}
+.g{color:var(--green);}.r{color:var(--red);}
+/* TABLE */
+#twrap{overflow:auto;}
+table{width:100%;border-collapse:separate;border-spacing:0;}
+thead tr.hg1 th{background:#0d0d14;position:sticky;top:0;z-index:12;padding:5px 10px;font-size:9px;color:var(--mu);font-weight:600;letter-spacing:.6px;white-space:nowrap;text-align:center;border-right:1px solid var(--border);border-bottom:1px solid var(--border);}
+thead tr.hg2 th{background:var(--bg2);position:sticky;top:24px;z-index:11;padding:6px 10px;text-align:center;font-size:9px;color:var(--mu);font-weight:600;letter-spacing:.4px;border-bottom:2px solid var(--border);white-space:nowrap;border-right:1px solid #1e1e2a;cursor:pointer;user-select:none;}
+thead tr.hg2 th:hover{color:var(--text);}
+.sort-asc::after{content:' ▲';color:var(--acc);}
+.sort-desc::after{content:' ▼';color:var(--acc);}
+tbody tr{border-bottom:1px solid #13131c;}
+tbody tr:hover{background:#111119;}
+td{padding:7px 10px;font-size:12px;white-space:nowrap;text-align:center;border-right:1px solid #16161e;border-bottom:1px solid #13131c;}
+.sym{font-weight:700;font-size:13px;}
+.xt{font-size:9px;color:var(--mu);margin-left:2px;}
+.nc{color:var(--mu);font-size:11px;max-width:120px;overflow:hidden;text-overflow:ellipsis;display:inline-block;vertical-align:middle;}
+.ni{color:#7070aa;font-size:10px;max-width:110px;overflow:hidden;text-overflow:ellipsis;display:inline-block;vertical-align:middle;}
+.up{color:var(--green);}.dn{color:var(--red);}.mu{color:var(--mu);}
+.ld{color:var(--mu);font-style:italic;font-size:11px;}
+.er{color:var(--red);font-size:11px;}
+.star{cursor:pointer;font-size:14px;color:var(--mu);user-select:none;}
+.star:hover{color:var(--acc);}.star.on{color:var(--acc);}
+.yes{font-weight:700;font-size:11px;background:rgba(0,214,143,.15);color:var(--green);border-radius:3px;padding:2px 6px;}
+.no{font-weight:700;font-size:11px;background:rgba(255,68,102,.12);color:var(--red);border-radius:3px;padding:2px 6px;}
+.streak-up{color:var(--green);font-size:11px;}
+.streak-dn{color:var(--red);font-size:11px;}
+.streak-0{color:var(--mu);font-size:11px;}
+.ev{font-size:11px;color:#aaa;}
+.pct-hi{font-size:10px;color:var(--red);}
+.pct-lo{font-size:10px;color:var(--green);}
+.pct-ath{font-size:10px;color:var(--mu);}
+.sec-border{border-left:2px solid var(--border)!important;}
+/* Signal tags */
+.t-bull{font-size:10px;font-weight:700;padding:2px 6px;border-radius:3px;background:rgba(0,214,143,.15);color:var(--green);}
+.t-bear{font-size:10px;font-weight:700;padding:2px 6px;border-radius:3px;background:rgba(255,68,102,.13);color:var(--red);}
+.t-mix{font-size:10px;font-weight:700;padding:2px 6px;border-radius:3px;background:rgba(240,165,0,.12);color:var(--acc);}
+.t-s1{font-size:10px;font-weight:700;padding:2px 5px;border-radius:3px;background:rgba(120,120,220,.13);color:#99f;}
+.t-s2{font-size:10px;font-weight:700;padding:2px 5px;border-radius:3px;background:rgba(0,214,143,.15);color:var(--green);}
+.t-s3{font-size:10px;font-weight:700;padding:2px 5px;border-radius:3px;background:rgba(240,165,0,.15);color:var(--acc);}
+.t-s4{font-size:10px;font-weight:700;padding:2px 5px;border-radius:3px;background:rgba(255,68,102,.13);color:var(--red);}
+.t-coil{font-size:10px;font-weight:700;padding:2px 5px;border-radius:3px;background:rgba(255,100,255,.12);color:#f8f;}
+.t-brk52{font-size:9px;font-weight:700;padding:1px 4px;border-radius:2px;margin-left:3px;background:rgba(240,165,0,.18);color:var(--acc);}
+.t-brkdn{font-size:9px;font-weight:700;padding:1px 4px;border-radius:2px;margin-left:3px;background:rgba(255,68,102,.18);color:var(--red);}
+.t-spike{font-size:9px;font-weight:700;padding:1px 4px;border-radius:2px;margin-left:3px;background:rgba(68,170,255,.18);color:#4af;}
+/* 200 EMA cross tags */
+.t-cup{font-size:9px;font-weight:700;padding:1px 5px;border-radius:2px;background:rgba(0,255,200,.15);color:#0ff;}
+.t-cdn{font-size:9px;font-weight:700;padding:1px 5px;border-radius:2px;background:rgba(255,60,60,.15);color:#f66;}
+.ema-sig{display:inline-block;font-size:8px;font-weight:700;padding:1px 4px;border-radius:2px;margin:1px 1px 0;}
+.ema-sig-up{background:rgba(0,214,143,.2);color:var(--green);border:1px solid rgba(0,214,143,.4);}
+.ema-sig-dn{background:rgba(255,68,102,.15);color:var(--red);border:1px solid rgba(255,68,102,.35);}
+.vr-hot{color:#f90;font-size:10px;font-weight:700;}
+.vr-norm{color:var(--mu);font-size:10px;}
+/* Volume */
+.vol-hi{color:var(--green);font-size:11px;font-weight:600;}
+.vol-lo{color:var(--mu);font-size:11px;}
+.vol-tag{font-size:9px;font-weight:700;padding:1px 4px;border-radius:2px;margin-left:3px;background:rgba(0,214,143,.18);color:var(--green);}
+/* Freeze — freeze star + ticker + name (3 cols) */
+.frz td:nth-child(1),.frz td:nth-child(2),.frz td:nth-child(3){position:sticky;z-index:4;background:var(--bg);}
+.frz td:nth-child(1){left:0;}
+.frz td:nth-child(2){left:30px;}
+.frz td:nth-child(3){left:130px;border-right:2px solid var(--border);}
+.frz tbody tr:hover td:nth-child(1),.frz tbody tr:hover td:nth-child(2),.frz tbody tr:hover td:nth-child(3){background:#111119;}
+.frz thead tr.hg1 th:nth-child(1),.frz thead tr.hg1 th:nth-child(2){position:sticky;z-index:14;background:#0d0d14;}
+.frz thead tr.hg1 th:nth-child(1){left:0;}
+.frz thead tr.hg1 th:nth-child(2){left:30px;}
+.frz thead tr.hg2 th:nth-child(1){position:sticky;left:0;z-index:13;background:var(--bg2);}
+.frz thead tr.hg2 th:nth-child(2){position:sticky;left:30px;z-index:13;background:var(--bg2);}
+.frz thead tr.hg2 th:nth-child(3){position:sticky;left:130px;z-index:13;background:var(--bg2);border-right:2px solid var(--border);}
+#empty{text-align:center;padding:60px;color:var(--mu);}
+/* FILTER ROW */
+thead tr.hg3 th{background:#0c0c13;position:sticky;top:54px;z-index:10;padding:3px 4px;border-bottom:2px solid var(--acc);border-right:1px solid #1e1e2a;white-space:nowrap;}
+.fi{background:var(--bg3);border:1px solid var(--border);color:var(--text);font-family:inherit;font-size:10px;padding:2px 5px;border-radius:3px;outline:none;width:100%;box-sizing:border-box;}
+.fi:focus{border-color:var(--acc);}
+.fi-sel{background:var(--bg3);border:1px solid var(--border);color:var(--text);font-family:inherit;font-size:10px;padding:2px 3px;border-radius:3px;outline:none;width:100%;cursor:pointer;}
+.fi-sel:focus,.fi-sel.act{border-color:var(--acc);color:var(--acc);}
+.fi-rng{display:flex;gap:2px;align-items:center;}
+.fi-rng input{background:var(--bg3);border:1px solid var(--border);color:var(--text);font-family:inherit;font-size:10px;padding:2px 4px;border-radius:3px;outline:none;width:48%;min-width:0;}
+.fi-rng input:focus{border-color:var(--acc);}
+.fi-rng input.act{border-color:var(--acc);color:var(--acc);}
+.fi-rng span{color:var(--mu);font-size:9px;}
+/* Active filter count badge */
+#fBadge{font-size:10px;font-weight:700;color:var(--acc);background:rgba(240,165,0,.12);border:1px solid rgba(240,165,0,.3);border-radius:3px;padding:1px 6px;margin-left:6px;display:none;}
+/* frz filter row sticky */
+.frz thead tr.hg3 th:nth-child(1){position:sticky;left:0;z-index:15;background:#0c0c13;}
+.frz thead tr.hg3 th:nth-child(2){position:sticky;left:30px;z-index:15;background:#0c0c13;}
+.frz thead tr.hg3 th:nth-child(3){position:sticky;left:130px;z-index:15;background:#0c0c13;border-right:2px solid var(--border);}
+#wlEmpty{display:none;text-align:center;padding:60px;color:var(--mu);}
+#toast{position:fixed;bottom:20px;right:20px;background:var(--bg3);border:1px solid var(--border);padding:10px 16px;border-radius:4px;font-size:12px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:999;}
+#toast.show{opacity:1;}
+#toast.ok{border-color:var(--green);color:var(--green);}
+#toast.er{border-color:var(--red);color:var(--red);}
+/* hidden file input */
+#fileImport{display:none;}
+/* SMART FILTER BAR */
+#smartBar{display:flex;align-items:center;gap:10px;padding:8px 16px;background:#0d0d16;border-bottom:2px solid rgba(240,165,0,.2);flex-wrap:wrap;}
+.sb-label{font-size:9px;font-weight:700;letter-spacing:1px;color:var(--acc);white-space:nowrap;opacity:.7;}
+.sb-group{display:flex;flex-direction:column;gap:2px;}
+.sb-grouplabel{font-size:8px;font-weight:600;letter-spacing:.6px;color:var(--mu);text-transform:uppercase;}
+.sb-sel{background:var(--bg3);border:1px solid var(--border);color:var(--text);font-family:inherit;font-size:11px;padding:5px 10px;border-radius:4px;cursor:pointer;outline:none;min-width:150px;}
+.sb-sel:focus,.sb-sel.act{border-color:var(--acc);color:var(--acc);}
+.sb-preset{background:var(--bg3);border:1px solid rgba(240,165,0,.3);color:var(--acc);font-family:inherit;font-size:11px;font-weight:600;padding:7px 14px;border-radius:4px;cursor:pointer;white-space:nowrap;transition:all .15s;}
+.sb-preset:hover,.sb-preset.on{background:rgba(240,165,0,.12);border-color:var(--acc);}
+.sb-preset.on{box-shadow:0 0 8px rgba(240,165,0,.25);}
+.sb-clear{background:transparent;border:1px solid rgba(255,68,102,.3);color:var(--red);font-family:inherit;font-size:10px;padding:5px 12px;border-radius:4px;cursor:pointer;margin-left:auto;}
+.sb-clear:hover{background:rgba(255,68,102,.08);}
+/* SLIM DB BAR */
+#dbbar{display:flex;align-items:center;gap:8px;padding:6px 16px;background:var(--bg2);border-bottom:1px solid var(--border);}
+/* MODAL */
+#modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;align-items:flex-start;justify-content:center;padding-top:60px;}
+#modal.on{display:flex;}
+#modalBox{background:var(--bg2);border:1px solid var(--border);border-radius:6px;width:min(900px,95vw);max-height:80vh;display:flex;flex-direction:column;overflow:hidden;}
+#modalHead{display:flex;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);background:var(--bg3);}
+#modalBody{overflow-y:auto;flex:1;}
+.mrow{display:flex;align-items:center;gap:10px;padding:7px 16px;border-bottom:1px solid #16161e;font-size:12px;}
+.mrow:hover{background:#111119;}
+.mrow-num{color:var(--mu);font-size:10px;min-width:28px;}
+.mrow-sym{font-weight:700;min-width:110px;}
+.mrow-name{color:var(--mu);font-size:11px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.mrow-ind{color:#7070aa;font-size:10px;min-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.mrow-status{min-width:90px;text-align:center;}
+.ms-ok{font-size:10px;font-weight:700;color:var(--green);background:rgba(0,214,143,.1);border-radius:3px;padding:1px 6px;}
+.ms-err{font-size:10px;font-weight:700;color:var(--red);background:rgba(255,68,102,.1);border-radius:3px;padding:1px 6px;}
+.ms-load{font-size:10px;color:var(--acc);font-style:italic;}
+.ms-new{font-size:10px;color:var(--mu);font-style:italic;}
+.mrow-del{margin-left:auto;background:transparent;border:1px solid rgba(255,68,102,.3);color:var(--red);font-size:10px;padding:2px 8px;border-radius:3px;cursor:pointer;font-family:inherit;}
+.mrow-del:hover{background:rgba(255,68,102,.12);}
 
-/* ── TOP BAR ── */
-#topbar {
-  display: flex; align-items: center; gap: 12px;
-  padding: 10px 16px; background: var(--bg2);
-  border-bottom: 1px solid var(--border);
-}
-#logo { font-size: 15px; font-weight: 700; letter-spacing: 1px; }
-#logo span { color: var(--acc); }
-#topbar-right { margin-left: auto; font-size: 11px; color: var(--mu); }
-
-/* ── INPUT PANEL ── */
-#inputPanel {
-  display: flex; gap: 12px; align-items: flex-start;
-  padding: 14px 16px; background: var(--bg2);
-  border-bottom: 1px solid var(--border); flex-wrap: wrap;
-}
-textarea {
-  background: var(--bg3); border: 1px solid var(--border);
-  color: var(--text); font-family: inherit; font-size: 12px;
-  padding: 8px 10px; border-radius: 4px; resize: vertical;
-  width: 220px; height: 80px; outline: none;
-}
-textarea:focus { border-color: var(--acc); }
-.exch-btns { display: flex; gap: 6px; flex-direction: column; }
-.exch-btn {
-  background: var(--bg3); border: 1px solid var(--border);
-  color: var(--mu); font-family: inherit; font-size: 11px;
-  padding: 5px 12px; border-radius: 4px; cursor: pointer;
-}
-.exch-btn.active { border-color: var(--acc); color: var(--acc); }
-.btn {
-  background: transparent; border: 1px solid var(--border);
-  color: var(--text); font-family: inherit; font-size: 12px;
-  padding: 7px 14px; border-radius: 4px; cursor: pointer;
-  white-space: nowrap;
-}
-.btn:hover { border-color: var(--acc); color: var(--acc); }
-.btn.primary { background: var(--acc); border-color: var(--acc); color: #000; font-weight: 700; }
-.btn.primary:hover { background: #ffb800; }
-.btn:disabled { opacity: 0.4; cursor: not-allowed; }
-
-/* ── DB CHIPS ── */
-#dbPanel {
-  padding: 8px 16px; background: var(--bg2);
-  border-bottom: 1px solid var(--border);
-  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-  min-height: 36px;
-}
-#dbLabel { font-size: 11px; color: var(--mu); white-space: nowrap; }
-#dbChips { display: flex; gap: 6px; flex-wrap: wrap; flex: 1; }
-.chip {
-  display: inline-flex; align-items: center; gap: 5px;
-  background: var(--bg3); border: 1px solid var(--border);
-  border-radius: 3px; padding: 2px 7px; font-size: 11px;
-}
-.chip-n { color: var(--mu); font-size: 10px; }
-.chip-x {
-  cursor: pointer; color: var(--mu); font-size: 12px; line-height: 1;
-}
-.chip-x:hover { color: var(--red); }
-
-/* ── STATUS BAR ── */
-#statusBar {
-  display: none; padding: 5px 16px;
-  background: var(--bg2); border-bottom: 1px solid var(--border);
-  font-size: 11px; color: var(--mu);
-}
-#statusBar.on { display: flex; align-items: center; gap: 16px; }
-.stat-item { display: flex; align-items: center; gap: 4px; }
-.stat-val { color: var(--text); font-weight: 600; }
-.stat-val.green { color: var(--green); }
-.stat-val.red { color: var(--red); }
-#progText { margin-left: auto; }
-
-/* ── TABLE ── */
-#tableWrap { overflow: auto; flex: 1; }
-table { width: 100%; border-collapse: collapse; min-width: 700px; }
-thead th {
-  background: var(--bg2); position: sticky; top: 0; z-index: 10;
-  padding: 8px 12px; text-align: left; font-size: 10px;
-  color: var(--mu); font-weight: 600; letter-spacing: .5px;
-  border-bottom: 1px solid var(--border); white-space: nowrap;
-  cursor: pointer; user-select: none;
-}
-thead th:hover { color: var(--text); }
-tbody tr { border-bottom: 1px solid #16161e; }
-tbody tr:hover { background: #13131b; }
-td { padding: 7px 12px; font-size: 12px; white-space: nowrap; }
-.sym { font-weight: 700; font-size: 13px; }
-.exch-tag { font-size: 9px; color: var(--mu); margin-left: 3px; }
-.name-cell { color: var(--mu); font-size: 11px; max-width: 160px; overflow: hidden; text-overflow: ellipsis; }
-.price { font-family: 'IBM Plex Mono', monospace; }
-.up { color: var(--green); }
-.dn { color: var(--red); }
-.mu { color: var(--mu); }
-.err-msg { color: var(--red); font-size: 11px; }
-.loading { color: var(--mu); font-size: 11px; font-style: italic; }
-
-#emptyMsg {
-  text-align: center; padding: 60px 20px;
-  color: var(--mu); font-size: 12px; display: none;
-}
-
-/* ── TOAST ── */
-#toast {
-  position: fixed; bottom: 20px; right: 20px;
-  background: var(--bg3); border: 1px solid var(--border);
-  padding: 10px 16px; border-radius: 4px; font-size: 12px;
-  opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 999;
-}
-#toast.show { opacity: 1; }
-#toast.ok { border-color: var(--green); color: var(--green); }
-#toast.err { border-color: var(--red); color: var(--red); }
+/* THEME TOGGLE */
+#themeBtn{background:var(--bg3);border:1px solid var(--border);color:var(--text);font-family:inherit;font-size:11px;padding:4px 10px;border-radius:20px;cursor:pointer;margin-left:8px;user-select:none;}
+#themeBtn:hover{border-color:var(--acc);}
+/* COLUMN VISIBILITY PANEL */
+#colVisBtn{background:transparent;border:1px solid var(--border);color:var(--mu);font-family:inherit;font-size:11px;padding:5px 12px;border-radius:4px;cursor:pointer;}
+#colVisBtn:hover{border-color:var(--acc);color:var(--acc);}
+#colVisPanel{display:none;position:fixed;top:0;right:0;width:260px;height:100vh;background:var(--bg2);border-left:2px solid var(--border);z-index:300;overflow-y:auto;box-shadow:-4px 0 20px rgba(0,0,0,.4);}
+#colVisPanel.on{display:block;}
+#colVisHead{padding:12px 16px;background:var(--bg3);border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;font-size:12px;font-weight:700;}
+.cvg{padding:10px 16px;border-bottom:1px solid var(--border);}
+.cvg-label{font-size:9px;font-weight:700;letter-spacing:.8px;color:var(--acc);text-transform:uppercase;margin-bottom:6px;}
+.cvc{display:flex;align-items:center;gap:8px;padding:4px 0;font-size:11px;cursor:pointer;}
+.cvc input[type=checkbox]{accent-color:var(--acc);width:13px;height:13px;cursor:pointer;}
+.cvc:hover{color:var(--acc);}
+/* Stronger 52W color — very close or very far */
+.pct-hi-close{font-size:10px;color:#ff8800;font-weight:700;}  /* < 1% from high = hot */
+.pct-hi-far{font-size:10px;color:#aa2244;}                    /* > 30% from high = deep */
+.pct-lo-close{font-size:10px;color:#00ffaa;font-weight:700;}  /* < 5% from low = danger */
+.pct-lo-far{font-size:10px;color:#00aa66;}                    /* > 80% from low = strong */
+/* pullback days tag */
+.pb-tag{font-size:8px;color:var(--mu);display:block;margin-top:1px;}
+.pb-tag.warn{color:var(--acc);}
+.pb-tag.ok{color:var(--green);}
+/* ADR / AWR cells */
+.adr-tight{color:var(--green);font-size:11px;font-weight:600;}
+.adr-mid{color:var(--mu);font-size:11px;}
+.adr-wide{color:var(--red);font-size:11px;}
+/* Weekly EMA conditions */
+.wyes{font-weight:700;font-size:10px;background:rgba(0,214,143,.1);color:var(--green);border-radius:3px;padding:1px 5px;}
+.wno{font-weight:700;font-size:10px;background:rgba(255,68,102,.09);color:var(--red);border-radius:3px;padding:1px 5px;}
+/* hidden column utility */
+.col-hidden{display:none!important;}
+/* STICKY SCROLLBAR */
+#hscroll{overflow-x:auto;overflow-y:hidden;height:14px;background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:48px;z-index:9;}
+#hscrollInner{height:1px;}
 </style>
-<link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
 
-<!-- TOP BAR -->
 <div id="topbar">
   <div id="logo">STOCK<span>PULSE</span>.IN</div>
   <div style="color:var(--mu);font-size:11px">// NSE BSE Momentum Terminal</div>
-  <div id="topbar-right" id="lastUpd">awaiting data</div>
+  <span id="arInfo"></span>
+  <div id="lastUpd">—</div>
+  <button id="themeBtn" onclick="toggleTheme()">☀ Light</button>
 </div>
 
-<!-- INPUT PANEL -->
-<div id="inputPanel">
+<div id="inp">
   <div>
-    <div style="font-size:10px;color:var(--mu);margin-bottom:4px">ADD TICKERS &nbsp;<span id="dbCount" style="color:var(--acc)">DB: 0</span></div>
-    <textarea id="tickerInput" placeholder="RELIANCE&#10;TCS&#10;INFY&#10;(bare symbols, auto-suffix)"></textarea>
+    <div style="font-size:10px;color:var(--mu);margin-bottom:4px">ADD TICKERS <span id="dbc" style="color:var(--acc)">DB:0</span></div>
+    <textarea id="ti" placeholder="RELIANCE&#10;TCS&#10;INFY"></textarea>
   </div>
-  <div class="exch-btns">
+  <div>
     <div style="font-size:10px;color:var(--mu);margin-bottom:4px">EXCHANGE</div>
-    <button class="exch-btn active" id="btnNS" onclick="setExch('NS')">NSE (.NS)</button>
-    <button class="exch-btn" id="btnBO" onclick="setExch('BO')">BSE (.BO)</button>
+    <button class="eb on" id="bns" onclick="setX('NS')">NSE (.NS)</button>
+    <button class="eb" id="bbo" onclick="setX('BO')">BSE (.BO)</button>
   </div>
-  <div style="display:flex;flex-direction:column;gap:8px;padding-top:18px">
-    <button class="btn primary" onclick="addAndFetch()">+ Add &amp; Fetch Prices</button>
-    <button class="btn" id="refreshBtn" onclick="refreshAll()" disabled>⟳ Refresh All Prices</button>
-    <button class="btn" onclick="clearAll()">✕ Clear Table</button>
+  <div style="padding-top:18px;">
+    <button class="btn pri" onclick="addFetch()">+ Add &amp; Fetch</button>
+    <button class="btn" id="rbtn" onclick="refreshAll()" disabled>⟳ Refresh All</button>
+    <button class="btn" onclick="clearT()">✕ Clear Table</button>
+  </div>
+  <div style="padding-top:18px;">
+    <div style="font-size:10px;color:var(--mu);margin-bottom:4px">IMPORT LIST</div>
+    <button class="btn" onclick="document.getElementById('fileImport').click()">↑ Import CSV / Excel</button>
+    <input type="file" id="fileImport" accept=".csv,.xlsx,.xls" onchange="importFile(this)">
+    <div style="font-size:9px;color:var(--mu);margin-top:-2px;margin-bottom:6px">Cols: Ticker, Name, Industry</div>
+    <button class="btn" onclick="exportCSV()">↓ Export CSV</button>
+    <button class="btn" onclick="exportExcel()">↓ Export Excel</button>
+  </div>
+  <div style="padding-top:18px;">
+    <div style="font-size:10px;color:var(--mu);margin-bottom:4px">AUTO REFRESH</div>
+    <select id="arSel" onchange="setAutoRefresh()">
+      <option value="0">Off</option>
+      <option value="60" selected>Every 1 Hour</option>
+      <option value="30">Every 30 Min</option>
+      <option value="15">Every 15 Min</option>
+    </select>
   </div>
 </div>
 
-<!-- DB CHIPS -->
-<div id="dbPanel">
-  <span id="dbLabel">MY STOCKS (0)</span>
-  <div id="dbChips"></div>
+<!-- SLIM DB BAR -->
+<div id="dbbar">
+  <span style="font-size:11px;color:var(--mu)">MY STOCKS <span id="dbCount" style="color:var(--acc);font-weight:700">0</span></span>
+  <span id="errBadge" style="display:none;font-size:10px;font-weight:700;color:var(--red);background:rgba(255,68,102,.12);border:1px solid var(--red);border-radius:3px;padding:1px 6px;margin-left:6px"></span>
+  <button class="tbtn" onclick="openModal()" style="font-size:11px;padding:3px 10px">☰ Manage Stocks</button>
+  <button class="tbtn" onclick="clearAllDB()" style="font-size:11px;padding:3px 10px;color:var(--red);border-color:rgba(255,68,102,.4)">✕ Clear All</button>
 </div>
 
-<!-- STATUS BAR -->
-<div id="statusBar">
-  <span class="stat-item">TOTAL <span class="stat-val" id="sTot">0</span></span>
-  <span class="stat-item">OK <span class="stat-val green" id="sOk">0</span></span>
-  <span class="stat-item">ERR <span class="stat-val red" id="sErr">0</span></span>
-  <span id="progText"></span>
+<!-- STOCK MANAGER MODAL -->
+<div id="modal" onclick="if(event.target===this)closeModal()">
+  <div id="modalBox">
+    <div id="modalHead">
+      <span style="font-size:13px;font-weight:700;letter-spacing:.5px">STOCK MANAGER</span>
+      <span id="modalStats" style="font-size:11px;color:var(--mu);margin-left:12px"></span>
+      <div style="margin-left:auto;display:flex;gap:8px;align-items:center;">
+        <button class="tbtn" onclick="removeInvalid()" id="rmInvalidBtn" style="font-size:10px;padding:3px 10px;color:var(--red);border-color:rgba(255,68,102,.4);display:none">✕ Remove All Invalid</button>
+        <button class="tbtn" onclick="clearAllDB();closeModal()" style="font-size:10px;padding:3px 10px;color:var(--red);border-color:rgba(255,68,102,.4)">✕ Clear All</button>
+        <button class="tbtn" onclick="closeModal()" style="font-size:11px;padding:3px 10px">✕ Close</button>
+      </div>
+    </div>
+    <div id="modalBody"></div>
+  </div>
 </div>
 
-<!-- TABLE -->
-<div id="tableWrap">
-  <div id="emptyMsg">Add tickers above and click "Add &amp; Fetch Prices"</div>
-  <table id="mainTable" style="display:none">
+<div id="toolbar">
+  <input id="searchBox" type="text" placeholder="Search ticker / name / industry..." oninput="renderTbl()">
+  <span id="fBadge" title="Active filters">0 filters</span>
+  <button class="tbtn" onclick="clearAllFilters()" id="fClearBtn" style="display:none;font-size:10px;padding:3px 8px;color:var(--acc)">✕ Clear Filters</button>
+  <button id="wlToggle" class="tbtn" onclick="toggleWL()">☆ Watchlist <span id="wlCount"></span></button>
+  <button id="freezeBtn" class="tbtn" onclick="toggleFreeze()">❄ Freeze Cols</button>
+  <button id="colVisBtn" onclick="toggleColVis()">⊞ Columns</button>
+  <button class="tbtn" onclick="exportVisibleCSV()" style="font-size:10px;padding:3px 8px">↓ Export Visible</button>
+  <span id="cacheNote"></span>
+</div>
+
+<!-- STICKY HORIZONTAL SCROLLBAR mirrors #twrap -->
+<div id="hscroll"><div id="hscrollInner"></div></div>
+
+<!-- SMART FILTER BAR -->
+<div id="smartBar">
+  <span class="sb-label">SMART FILTERS</span>
+
+  <div class="sb-group">
+    <span class="sb-grouplabel">% vs EMA20</span>
+    <select class="sb-sel" id="sf_pullback" onchange="applyFilters()">
+      <option value="">All</option>
+      <option value="pullback1">Pullback 0% to -1%</option>
+      <option value="pullback3">Pullback 0% to -3%</option>
+      <option value="pullback5">Pullback 0% to -5%</option>
+      <option value="above_ema20">Above EMA20</option>
+      <option value="below_ema20">Below EMA20</option>
+    </select>
+  </div>
+
+  <div class="sb-group">
+    <span class="sb-grouplabel">Vol Ratio</span>
+    <select class="sb-sel" id="sf_volratio" onchange="applyFilters()">
+      <option value="">All</option>
+      <option value="1.5">&gt; 1.5× Avg</option>
+      <option value="2">&gt; 2× Avg</option>
+      <option value="3">&gt; 3× Avg</option>
+    </select>
+  </div>
+
+  <div class="sb-group">
+    <span class="sb-grouplabel">52W Breakout</span>
+    <select class="sb-sel" id="sf_bo52" onchange="applyFilters()">
+      <option value="">All</option>
+      <option value="near">Near High (&lt;2%)</option>
+      <option value="at">At / Above High</option>
+    </select>
+  </div>
+
+  <button class="sb-preset" id="presetS2Bull" onclick="applyPreset('s2bull')" title="TREND=BULL + PHASE=S2 + all 4 EMA conditions YES">
+    🔥 S2 + BULL Setup
+  </button>
+  <button class="sb-preset" id="presetMomentum" onclick="applyPreset('momentum')" title="BULL + S2 + Vol Ratio &gt;1.5x + P&gt;EMA20">
+    ⚡ Full Momentum
+  </button>
+  <button class="sb-preset" id="presetCoilBO" onclick="applyPreset('coilbo')" title="COIL + Near 52W High = compression at top">
+    🌀 Coil + Breakout
+  </button>
+
+  <button class="sb-clear" onclick="clearSmartFilters()" id="sfClearBtn" style="display:none">✕ Clear Smart</button>
+</div>
+
+<!-- COLUMN VISIBILITY PANEL (slide-out) -->
+<div id="colVisPanel">
+  <div id="colVisHead">
+    <span>⊞ COLUMN VISIBILITY</span>
+    <button class="tbtn" onclick="toggleColVis()" style="padding:2px 8px;font-size:10px">✕</button>
+  </div>
+  <div class="cvg">
+    <div class="cvg-label">Stock Info</div>
+    <label class="cvc"><input type="checkbox" id="cv_industry" onchange="applyColVis()" checked> Industry</label>
+  </div>
+  <div class="cvg">
+    <div class="cvg-label">Signal</div>
+    <label class="cvc"><input type="checkbox" id="cv_trend" onchange="applyColVis()" checked> Trend</label>
+    <label class="cvc"><input type="checkbox" id="cv_phase" onchange="applyColVis()" checked> Phase</label>
+    <label class="cvc"><input type="checkbox" id="cv_coil" onchange="applyColVis()" checked> Coil / 5D Range</label>
+  </div>
+  <div class="cvg">
+    <div class="cvg-label">Price &amp; Range</div>
+    <label class="cvc"><input type="checkbox" id="cv_pch" onchange="applyColVis()" checked> % Day</label>
+    <label class="cvc"><input type="checkbox" id="cv_mcap" onchange="applyColVis()" checked> MCap</label>
+    <label class="cvc"><input type="checkbox" id="cv_52w" onchange="applyColVis()" checked> 52W High / Low</label>
+    <label class="cvc"><input type="checkbox" id="cv_5yh" onchange="applyColVis()" checked> 5Y High</label>
+    <label class="cvc"><input type="checkbox" id="cv_rng" onchange="applyColVis()" checked> 5D / 4W Range</label>
+    <label class="cvc"><input type="checkbox" id="cv_adr" onchange="applyColVis()" checked> ADR / AWR</label>
+    <label class="cvc"><input type="checkbox" id="cv_pb52" onchange="applyColVis()" checked> Days from 52W H/L</label>
+  </div>
+  <div class="cvg">
+    <div class="cvg-label">EMA Values</div>
+    <label class="cvc"><input type="checkbox" id="cv_ema_vals" onchange="applyColVis()" checked> EMA 20/50/100/200</label>
+  </div>
+  <div class="cvg">
+    <div class="cvg-label">EMA Conditions (Daily)</div>
+    <label class="cvc"><input type="checkbox" id="cv_ema_cond" onchange="applyColVis()" checked> 100&gt;200, 50&gt;100, 20&gt;50, P&gt;20</label>
+  </div>
+  <div class="cvg">
+    <div class="cvg-label">EMA Conditions (Weekly)</div>
+    <label class="cvc"><input type="checkbox" id="cv_wema" onchange="applyColVis()" checked> W: 100&gt;200, 50&gt;100, 20&gt;50, P&gt;20</label>
+  </div>
+  <div class="cvg">
+    <div class="cvg-label">Days vs EMA</div>
+    <label class="cvc"><input type="checkbox" id="cv_streaks" onchange="applyColVis()" checked> vs EMA 20/50/100/200</label>
+  </div>
+  <div class="cvg">
+    <div class="cvg-label">Volume</div>
+    <label class="cvc"><input type="checkbox" id="cv_vol" onchange="applyColVis()" checked> Today Vol / Wk / Mo / Qtr</label>
+  </div>
+  <div style="padding:12px 16px;">
+    <button class="btn" onclick="resetColVis()" style="width:100%;text-align:center">↺ Reset to Default</button>
+  </div>
+</div>
+
+<div id="alertPanel">
+  <span id="alertLabel">⚠ ALERTS</span>
+  <div id="alertItems"></div>
+  <button class="tbtn" onclick="dismissAlerts()" style="margin-left:auto;font-size:10px;padding:3px 8px">✕</button>
+</div>
+
+<div id="sbar">
+  TOTAL <span class="sv" id="st">0</span>
+  OK <span class="sv g" id="sok">0</span>
+  ERR <span class="sv r" id="ser">0</span>
+  <span id="prog" style="margin-left:auto"></span>
+</div>
+
+<div id="twrap">
+  <div id="empty">Add tickers or import CSV to get started</div>
+  <div id="wlEmpty">No watchlist stocks yet — click ☆ on any row to add</div>
+  <table id="tbl" style="display:none">
     <thead>
-      <tr>
-        <th>TICKER</th>
-        <th>NAME</th>
-        <th>PRICE ₹</th>
-        <th>% DAY</th>
-        <th>52W HIGH</th>
-        <th>52W LOW</th>
-        <th>MCAP CR</th>
+      <tr class="hg1">
+        <th colspan="1"></th>
+        <th colspan="3" style="text-align:left">STOCK</th>
+        <th colspan="3">SIGNAL</th>
+        <th colspan="12">PRICE &amp; RANGE</th>
+        <th colspan="4" class="sec-border">EMA VALUES &amp; SIGNALS</th>
+        <th colspan="4" class="sec-border" id="hg1_emacond">EMA CONDITIONS (DAILY)</th>
+        <th colspan="4" class="sec-border" id="hg1_wema">EMA CONDITIONS (WEEKLY)</th>
+        <th colspan="4" class="sec-border">DAYS vs EMA</th>
+        <th colspan="4" class="sec-border">VOLUME</th>
+      </tr>
+      <tr class="hg2" id="colHeaders">
+        <th style="width:30px;cursor:default"></th>
+        <th style="text-align:left;min-width:100px" onclick="sortBy('sym')">TICKER</th>
+        <th style="text-align:left;min-width:120px" onclick="sortBy('name')">NAME</th>
+        <th style="text-align:left;min-width:100px" onclick="sortBy('industry')">INDUSTRY</th>
+        <th onclick="sortBy('bull')">TREND</th>
+        <th onclick="sortBy('phase')">PHASE</th>
+        <th onclick="sortBy('coil')">COIL</th>
+        <th onclick="sortBy('price')">PRICE ₹</th>
+        <th onclick="sortBy('pch')">% DAY</th>
+        <th onclick="sortBy('mcap')">MCAP CR</th>
+        <th onclick="sortBy('pfh')" id="h_52wh">% 52W H</th>
+        <th onclick="sortBy('pfl')" id="h_52wl">% 52W L</th>
+        <th onclick="sortBy('pfath')" id="h_5yh">% 5Y H</th>
+        <th onclick="sortBy('range5d')" id="h_rng5d">5D RNG%</th>
+        <th onclick="sortBy('range4w')" id="h_rng4w">4W RNG%</th>
+        <th onclick="sortBy('adr')" id="h_adr">ADR%</th>
+        <th onclick="sortBy('awr')" id="h_awr">AWR%</th>
+        <th onclick="sortBy('daysFrH')" id="h_pbh">DAYS fr 52H</th>
+        <th onclick="sortBy('daysFrL')" id="h_pbl">DAYS fr 52L</th>
+        <th class="sec-border" onclick="sortBy('e20')" id="h_e20">EMA 20</th>
+        <th onclick="sortBy('e50')" id="h_e50">EMA 50</th>
+        <th onclick="sortBy('e100')" id="h_e100">EMA 100</th>
+        <th onclick="sortBy('e200')" id="h_e200">EMA 200</th>
+        <th class="sec-border" onclick="sortBy('c_100gt200')" id="h_c1">100&gt;200</th>
+        <th onclick="sortBy('c_50gt100')" id="h_c2">50&gt;100</th>
+        <th onclick="sortBy('c_20gt50')" id="h_c3">20&gt;50</th>
+        <th onclick="sortBy('c_pgt20')" id="h_c4">P&gt;20</th>
+        <th class="sec-border" onclick="sortBy('wc_100gt200')" id="h_wc1">W:100&gt;200</th>
+        <th onclick="sortBy('wc_50gt100')" id="h_wc2">W:50&gt;100</th>
+        <th onclick="sortBy('wc_20gt50')" id="h_wc3">W:20&gt;50</th>
+        <th onclick="sortBy('wc_pgt20')" id="h_wc4">W:P&gt;20</th>
+        <th class="sec-border" onclick="sortBy('s20')" id="h_s20">vs EMA20</th>
+        <th onclick="sortBy('s50')" id="h_s50">vs EMA50</th>
+        <th onclick="sortBy('s100')" id="h_s100">vs EMA100</th>
+        <th onclick="sortBy('s200')" id="h_s200">vs EMA200</th>
+        <th class="sec-border" onclick="sortBy('todVol')" id="h_tvol">TODAY VOL</th>
+        <th onclick="sortBy('wkAvg')" id="h_wvol">WK AVG</th>
+        <th onclick="sortBy('moAvg')" id="h_mvol">MO AVG</th>
+        <th onclick="sortBy('qtrAvgVol')" id="h_qvol">QTR AVG</th>
+      </tr>
+      <!-- FILTER ROW -->
+      <tr class="hg3" id="filterRow">
+        <th></th>
+        <th><input class="fi" id="f_sym" placeholder="ticker..." oninput="applyFilters()"></th>
+        <th><input class="fi" id="f_name" placeholder="name..." oninput="applyFilters()"></th>
+        <th><select class="fi-sel" id="f_industry" onchange="applyFilters()"><option value="">All Industries</option></select></th>
+        <th><select class="fi-sel" id="f_bull" onchange="applyFilters()">
+          <option value="">All Trend</option>
+          <option value="1">&#9650; BULL</option>
+          <option value="0">~ MIX</option>
+          <option value="-1">&#9660; BEAR</option>
+        </select></th>
+        <th><select class="fi-sel" id="f_phase" onchange="applyFilters()">
+          <option value="">All Phase</option>
+          <option value="2">S2 UP</option>
+          <option value="1">S1 BASE</option>
+          <option value="3">S3 TOP</option>
+          <option value="4">S4 DN</option>
+        </select></th>
+        <th><select class="fi-sel" id="f_coil" onchange="applyFilters()">
+          <option value="">COIL: All</option>
+          <option value="1">COIL Only</option>
+          <option value="0">No Coil</option>
+        </select></th>
+        <th><select class="fi-sel" id="f_price" onchange="applyFilters()">
+          <option value="">All Price</option>
+          <option value="0-100">Under 100</option>
+          <option value="100-500">100-500</option>
+          <option value="500-1000">500-1K</option>
+          <option value="1000-5000">1K-5K</option>
+          <option value="5000-99999">Above 5K</option>
+        </select></th>
+        <th><select class="fi-sel" id="f_pch" onchange="applyFilters()">
+          <option value="">All % Day</option>
+          <option value="up2">Gainers &gt;+2%</option>
+          <option value="up1">Gainers &gt;+1%</option>
+          <option value="dn1">Losers &lt;-1%</option>
+          <option value="dn2">Losers &lt;-2%</option>
+          <option value="flat">Flat</option>
+        </select></th>
+        <th><select class="fi-sel" id="f_mcap" onchange="applyFilters()">
+          <option value="">All Cap</option>
+          <option value="large">Large &gt;20K Cr</option>
+          <option value="mid">Mid 5-20K Cr</option>
+          <option value="small">Small 500-5K</option>
+          <option value="micro">Micro &lt;500 Cr</option>
+        </select></th>
+        <th><select class="fi-sel" id="f_pfh" onchange="applyFilters()">
+          <option value="">52H: All</option>
+          <option value="near">Near &gt;-5%</option>
+          <option value="mid">-10% to -5%</option>
+          <option value="down">-20% to -10%</option>
+          <option value="deep">Deep &lt;-20%</option>
+        </select></th>
+        <th><select class="fi-sel" id="f_pfl" onchange="applyFilters()">
+          <option value="">52L: All</option>
+          <option value="near">Near &lt;+10%</option>
+          <option value="mid">+10% to +30%</option>
+          <option value="far">+30% to +80%</option>
+          <option value="farther">&gt;+80%</option>
+        </select></th>
+        <th><span style="display:block;height:22px;background:rgba(255,255,255,.02);border-radius:3px;border:1px solid rgba(255,255,255,.04)"></span></th>
+        <th><select class="fi-sel" id="f_range5d" onchange="applyFilters()">
+          <option value="">5D: All</option>
+          <option value="tight">Tight &lt;1%</option>
+          <option value="coil">Coil &lt;2.5%</option>
+          <option value="mid">2.5-5%</option>
+          <option value="wide">Wide &gt;5%</option>
+        </select></th>
+        <th><select class="fi-sel" id="f_range4w" onchange="applyFilters()">
+          <option value="">4W: All</option>
+          <option value="tight">Tight &lt;5%</option>
+          <option value="narrow">5-10%</option>
+          <option value="mid">10-20%</option>
+          <option value="wide">Wide &gt;20%</option>
+        </select></th>
+        <th><select class="fi-sel" id="f_adr" onchange="applyFilters()">
+          <option value="">ADR: All</option>
+          <option value="tight">Tight &lt;1%</option>
+          <option value="mid">1-3%</option>
+          <option value="wide">Wide &gt;3%</option>
+        </select></th>
+        <th><span style="display:block;height:22px;background:rgba(255,255,255,.02);border-radius:3px;border:1px solid rgba(255,255,255,.04)"></span></th>
+        <th><select class="fi-sel" id="f_daysFrH" onchange="applyFilters()">
+          <option value="">Days fr 52H: All</option>
+          <option value="fresh">Fresh &lt;20d</option>
+          <option value="mid">20-60d</option>
+          <option value="old">Old &gt;60d</option>
+        </select></th>
+        <th><select class="fi-sel" id="f_daysFrL" onchange="applyFilters()">
+          <option value="">Days fr 52L: All</option>
+          <option value="fresh">Fresh &lt;20d</option>
+          <option value="mid">20-60d</option>
+          <option value="old">Old &gt;60d</option>
+        </select></th>
+        <th class="sec-border"><span style="display:block;height:22px;background:rgba(255,255,255,.02);border-radius:3px;border:1px solid rgba(255,255,255,.04)"></span></th>
+        <th><span style="display:block;height:22px;background:rgba(255,255,255,.02);border-radius:3px;border:1px solid rgba(255,255,255,.04)"></span></th>
+        <th><span style="display:block;height:22px;background:rgba(255,255,255,.02);border-radius:3px;border:1px solid rgba(255,255,255,.04)"></span></th>
+        <th><span style="display:block;height:22px;background:rgba(255,255,255,.02);border-radius:3px;border:1px solid rgba(255,255,255,.04)"></span></th>
+        <th class="sec-border"><select class="fi-sel" id="f_c100gt200" onchange="applyFilters()">
+          <option value="">100&gt;200</option>
+          <option value="1">YES</option>
+          <option value="0">NO</option>
+        </select></th>
+        <th><select class="fi-sel" id="f_c50gt100" onchange="applyFilters()">
+          <option value="">50&gt;100</option>
+          <option value="1">YES</option>
+          <option value="0">NO</option>
+        </select></th>
+        <th><select class="fi-sel" id="f_c20gt50" onchange="applyFilters()">
+          <option value="">20&gt;50</option>
+          <option value="1">YES</option>
+          <option value="0">NO</option>
+        </select></th>
+        <th><select class="fi-sel" id="f_cpgt20" onchange="applyFilters()">
+          <option value="">P&gt;20</option>
+          <option value="1">YES</option>
+          <option value="0">NO</option>
+        </select></th>
+        <th class="sec-border"><select class="fi-sel" id="f_wc100gt200" onchange="applyFilters()">
+          <option value="">W:100&gt;200</option>
+          <option value="1">YES</option>
+          <option value="0">NO</option>
+        </select></th>
+        <th><select class="fi-sel" id="f_wc50gt100" onchange="applyFilters()">
+          <option value="">W:50&gt;100</option>
+          <option value="1">YES</option>
+          <option value="0">NO</option>
+        </select></th>
+        <th><select class="fi-sel" id="f_wc20gt50" onchange="applyFilters()">
+          <option value="">W:20&gt;50</option>
+          <option value="1">YES</option>
+          <option value="0">NO</option>
+        </select></th>
+        <th><select class="fi-sel" id="f_wcpgt20" onchange="applyFilters()">
+          <option value="">W:P&gt;20</option>
+          <option value="1">YES</option>
+          <option value="0">NO</option>
+        </select></th>
+        <th class="sec-border"><span style="display:block;height:22px;background:rgba(255,255,255,.02);border-radius:3px;border:1px solid rgba(255,255,255,.04)"></span></th>
+        <th><span style="display:block;height:22px;background:rgba(255,255,255,.02);border-radius:3px;border:1px solid rgba(255,255,255,.04)"></span></th>
+        <th><span style="display:block;height:22px;background:rgba(255,255,255,.02);border-radius:3px;border:1px solid rgba(255,255,255,.04)"></span></th>
+        <th><span style="display:block;height:22px;background:rgba(255,255,255,.02);border-radius:3px;border:1px solid rgba(255,255,255,.04)"></span></th>
+        <th class="sec-border"><span style="display:block;height:22px;background:rgba(255,255,255,.02);border-radius:3px;border:1px solid rgba(255,255,255,.04)"></span></th>
+        <th><span style="display:block;height:22px;background:rgba(255,255,255,.02);border-radius:3px;border:1px solid rgba(255,255,255,.04)"></span></th>
+        <th><span style="display:block;height:22px;background:rgba(255,255,255,.02);border-radius:3px;border:1px solid rgba(255,255,255,.04)"></span></th>
+        <th><select class="fi-sel" id="f_volratio_wk" onchange="applyFilters()">
+          <option value="">Wk/Qtr: All</option>
+          <option value="low">Below &lt;0.5x</option>
+          <option value="1">Above &gt;1x</option>
+          <option value="1.5">Active &gt;1.5x</option>
+          <option value="2">Surge &gt;2x</option>
+        </select></th>
       </tr>
     </thead>
-    <tbody id="tbody"></tbody>
+    <tbody id="tb"></tbody>
   </table>
 </div>
-
 <div id="toast"></div>
 
 <script>
-// ─────────────────────────────────────────
-// CONFIG
-// ─────────────────────────────────────────
-var DB_KEY = 'sp5_db';      // localStorage key for ticker DB
-var exch = 'NS';             // default exchange suffix
+var DB_KEY='sp5db2',CACHE_KEY='sp5cache10',WL_KEY='sp5wl',SNAP_KEY='sp5snap',IND_KEY='sp5ind',CACHE_TTL=4*60*60*1000;
+var exch='NS';
+var db=[],rows={},watchlist=new Set(),industries={};
+var sortCol=null,sortDir=1,showWL=false,frozen=false;
+var arTimer=null;
 
-// ─────────────────────────────────────────
-// STATE
-// ─────────────────────────────────────────
-var tickerDb = [];   // [{n, sym, added}]
-var tableData = {};  // {sym: rowData}
-var fetchCount = 0;  // how many fetches in flight
+// ── DB ──
+function load(){try{db=JSON.parse(localStorage.getItem(DB_KEY))||[];}catch(e){db=[];}}
+function save(){localStorage.setItem(DB_KEY,JSON.stringify(db));}
+function has(s){return db.some(function(t){return t.sym===s;});}
+function nextN(){return db.length?Math.max.apply(null,db.map(function(t){return t.n;}))+1:1;}
 
-// ─────────────────────────────────────────
-// DB — persist tickers in localStorage
-// ─────────────────────────────────────────
-function dbLoad() {
-  try { tickerDb = JSON.parse(localStorage.getItem(DB_KEY)) || []; } catch(e) { tickerDb = []; }
-}
-function dbSave() {
-  localStorage.setItem(DB_KEY, JSON.stringify(tickerDb));
-}
-function dbHas(sym) {
-  return tickerDb.some(function(t) { return t.sym === sym; });
-}
-function dbNextN() {
-  return tickerDb.length ? Math.max.apply(null, tickerDb.map(function(t){ return t.n; })) + 1 : 1;
-}
+// ── INDUSTRIES ──
+function indLoad(){try{industries=JSON.parse(localStorage.getItem(IND_KEY))||{};}catch(e){industries={};}}
+function indSave(){try{localStorage.setItem(IND_KEY,JSON.stringify(industries));}catch(e){}}
+function getInd(sym){var r=industries[sym]||{};return{name:r.name||null,industry:r.industry||null};}
 
-// ─────────────────────────────────────────
-// EXCHANGE
-// ─────────────────────────────────────────
-function setExch(e) {
-  exch = e;
-  document.getElementById('btnNS').className = 'exch-btn' + (e==='NS' ? ' active' : '');
-  document.getElementById('btnBO').className = 'exch-btn' + (e==='BO' ? ' active' : '');
-}
-
-// ─────────────────────────────────────────
-// PARSE TICKERS from textarea
-// ─────────────────────────────────────────
-function parseTickers(raw) {
-  return raw.split(/[\n,\s]+/)
-    .map(function(s) { s = s.trim().toUpperCase(); if (!s) return null;
-      // If already has suffix, keep it; else add exchange suffix
-      if (s.indexOf('.') >= 0) return s;
-      return s + '.' + exch;
-    })
-    .filter(Boolean);
-}
-
-// ─────────────────────────────────────────
-// RENDER DB PANEL (chips)
-// ─────────────────────────────────────────
-function renderDb() {
-  document.getElementById('dbCount').textContent = 'DB: ' + tickerDb.length;
-  document.getElementById('dbLabel').textContent = 'MY STOCKS (' + tickerDb.length + ')';
-  var h = '';
-  for (var i = 0; i < tickerDb.length; i++) {
-    var t = tickerDb[i];
-    var disp = t.sym.replace('.NS','').replace('.BO','');
-    h += '<span class="chip"><span class="chip-n">#' + t.n + '</span>' + disp +
-         '<span class="chip-x" onclick="removeStock(\'' + t.sym + '\')">×</span></span>';
+// ── IMPORT CSV/EXCEL ──
+// Expected columns (case-insensitive, any order): Ticker, Name, Industry
+// Exchange suffix auto-appended if missing
+function importFile(input){
+  var file=input.files[0];
+  if(!file){return;}
+  input.value='';
+  var reader=new FileReader();
+  if(file.name.match(/\.csv$/i)){
+    reader.onload=function(e){parseImportCSV(e.target.result);};
+    reader.readAsText(file);
+  } else {
+    // XLSX: read as binary then parse with manual zip/sheet extraction
+    reader.onload=function(e){parseImportXLSX(e.target.result);};
+    reader.readAsArrayBuffer(file);
   }
-  document.getElementById('dbChips').innerHTML = h;
-  document.getElementById('refreshBtn').disabled = tickerDb.length === 0;
+}
+function parseImportCSV(text){
+  var lines=text.split(/\r?\n/).filter(function(l){return l.trim();});
+  if(!lines.length){toast('Empty file','er');return;}
+  // Detect header row
+  var hdr=lines[0].split(/,|\t/).map(function(h){return h.trim().toLowerCase().replace(/['"]/g,'');});
+  var ti=hdr.findIndex(function(h){return h==='ticker'||h==='symbol'||h==='sym';});
+  var ni=hdr.findIndex(function(h){return h==='name'||h==='company';});
+  var ii=hdr.findIndex(function(h){return h==='industry'||h==='sector';});
+  if(ti<0){toast('No Ticker column found','er');return;}
+  var imported=0,added=0,n=nextN();
+  for(var r=1;r<lines.length;r++){
+    var cols=lines[r].split(/,|\t/).map(function(c){return c.trim().replace(/^["']|["']$/g,'');});
+    if(!cols[ti])continue;
+    var rawSym=cols[ti].trim().toUpperCase();
+    var sym=rawSym.indexOf('.')>=0?rawSym:rawSym+'.'+exch;
+    var name=ni>=0?cols[ni]||'':'';
+    var industry=ii>=0?cols[ii]||'':'';
+    industries[sym]={name:name,industry:industry};
+    imported++;
+    if(!has(sym)){db.push({n:n++,sym:sym});added++;}
+  }
+  indSave();save();renderDb();renderTbl();
+  toast('Imported '+imported+' — '+added+' new tickers added','ok');
+  if(added>0){
+    var newSyms=db.slice(-added).map(function(t){return t.sym;});
+    go(newSyms);
+  }
+}
+function parseImportXLSX(buf){
+  // Manual XLSX parse — extract first sheet rows as CSV then reuse CSV parser
+  // XLSX is a zip file; we use a simple approach: search for shared strings and sheet data
+  try{
+    var uint8=new Uint8Array(buf);
+    // Convert to string to find XML data (only works for xlsx with no compression, otherwise fallback)
+    var str=new TextDecoder('utf-8',{fatal:false}).decode(uint8);
+    // Try to extract CSV-like text by grabbing all <v> and <t> tags
+    // Better approach: tell user to save as CSV
+    toast('For Excel: please save as CSV first (File → Save As → CSV)','er');
+  } catch(e){
+    toast('Could not parse Excel. Save as CSV and try again','er');
+  }
 }
 
-function removeStock(sym) {
-  tickerDb = tickerDb.filter(function(t) { return t.sym !== sym; });
-  dbSave();
-  renderDb();
-  delete tableData[sym];
-  renderTable();
-  showToast(sym + ' removed', '');
+// ── WATCHLIST ──
+function wlLoad(){try{var a=JSON.parse(localStorage.getItem(WL_KEY))||[];watchlist=new Set(a);}catch(e){watchlist=new Set();}}
+function wlSave(){localStorage.setItem(WL_KEY,JSON.stringify([...watchlist]));}
+function toggleStar(sym){watchlist.has(sym)?watchlist.delete(sym):watchlist.add(sym);wlSave();renderTbl();updateWLCount();}
+function updateWLCount(){document.getElementById('wlCount').textContent=watchlist.size?'('+watchlist.size+')':'';}
+function toggleWL(){
+  showWL=!showWL;
+  var b=document.getElementById('wlToggle');
+  b.className='tbtn'+(showWL?' on':'');
+  b.innerHTML=(showWL?'★':'☆')+' Watchlist <span id="wlCount"></span>';
+  document.getElementById('searchBox').value='';
+  updateWLCount();renderTbl();
 }
 
-// ─────────────────────────────────────────
-// FETCH PRICE — always via Netlify function
-// Function handles Yahoo server-side (no CORS)
-// ─────────────────────────────────────────
-var FUNCTION_URL = '/.netlify/functions/quote';
+// ── FREEZE ──
+function toggleFreeze(){
+  frozen=!frozen;
+  document.getElementById('tbl').className=frozen?'frz':'';
+  var b=document.getElementById('freezeBtn');
+  b.className='tbtn'+(frozen?' on':'');
+  b.textContent=frozen?'🔓 Unfreeze':'❄ Freeze Cols';
+  toast(frozen?'Columns frozen':'Columns unfrozen','ok');
+}
 
-function fetchPrice(sym) {
-  var url = FUNCTION_URL + '?sym=' + encodeURIComponent(sym) + '&range=5d';
-  return fetch(url)
-    .then(function(r) {
-      if (!r.ok) throw new Error('Function error ' + r.status);
-      return r.json();
+// ── AUTO REFRESH ──
+function setAutoRefresh(){
+  clearInterval(arTimer);arTimer=null;
+  document.getElementById('arInfo').textContent='';
+  var mins=parseInt(document.getElementById('arSel').value)||0;
+  if(!mins)return;
+  startARTimer(mins);
+}
+function startARTimer(mins){
+  document.getElementById('arInfo').textContent='↻ '+mins+'min';
+  arTimer=setInterval(function(){
+    if(!db.length)return;
+    var syms=db.map(function(t){return t.sym;});
+    var c=JSON.parse(localStorage.getItem(CACHE_KEY)||'{}');
+    syms.forEach(function(s){delete c[s];});
+    localStorage.setItem(CACHE_KEY,JSON.stringify(c));
+    go(syms);
+  },mins*60*1000);
+}
+
+// ── CACHE ──
+function cacheLoad(){try{return JSON.parse(localStorage.getItem(CACHE_KEY))||{};}catch(e){return{};}}
+function cacheSave(c){try{localStorage.setItem(CACHE_KEY,JSON.stringify(c));}catch(e){}}
+function cacheGet(sym){var c=cacheLoad(),e=c[sym];if(!e||Date.now()-e.ts>CACHE_TTL)return null;return e.data;}
+function cacheSet(sym,data){var c=cacheLoad();c[sym]={ts:Date.now(),data:data};cacheSave(c);}
+function cacheClear(){localStorage.removeItem(CACHE_KEY);toast('Cache cleared','ok');updateCacheNote();}
+function updateCacheNote(){
+  var c=cacheLoad(),fresh=Object.keys(c).filter(function(k){return Date.now()-c[k].ts<CACHE_TTL;}).length;
+  document.getElementById('cacheNote').innerHTML=fresh
+    ?'Cache: '+fresh+' stocks (4hr) &nbsp;<a href="#" onclick="cacheClear();return false;">clear</a>':'';
+}
+
+// ── ALERT SNAPSHOT ──
+function getSnap(){try{return JSON.parse(localStorage.getItem(SNAP_KEY))||{};}catch(e){return{};}}
+function setSnap(s){try{localStorage.setItem(SNAP_KEY,JSON.stringify(s));}catch(e){}}
+function checkAlerts(){
+  var prev=getSnap(),newSnap={},alerts=[];
+  db.forEach(function(t){
+    var d=rows[t.sym];
+    if(!d||!d.price||d.err||d.loading)return;
+    var sym=t.sym,s=sym.replace(/\.(NS|BO)$/,'');
+    newSnap[sym]={bull:d.bull,phase:d.phase,bo52h:d.bo52h,bo52l:d.bo52l,volSpike:d.volSpike,coil:d.coil,cross200:d.cross200};
+    var p=prev[sym];if(!p)return;
+    if(p.bull!==d.bull&&d.bull!==null&&p.bull!==null){
+      if(d.bull===1)alerts.push({type:'bull',msg:s+' → ▲ BULL'});
+      else if(d.bull===-1)alerts.push({type:'bear',msg:s+' → ▼ BEAR'});
+      else alerts.push({type:'phase',msg:s+' → ~ MIX'});
+    }
+    if(p.phase!==d.phase&&d.phase!==null&&p.phase!==null){
+      var dir=d.phase<p.phase?'↑':'↓';
+      alerts.push({type:'phase',msg:s+' Phase '+dir+' S'+d.phase});
+    }
+    if(!p.bo52h&&d.bo52h)alerts.push({type:'brk',msg:s+' 🔥 52W HIGH BO'});
+    if(!p.bo52l&&d.bo52l)alerts.push({type:'bear',msg:s+' ⚠ 52W LOW BRK'});
+    if(!p.volSpike&&d.volSpike)alerts.push({type:'vol',msg:s+' ⚡ VOL 2x SPIKE'});
+    if(!p.coil&&d.coil)alerts.push({type:'coil',msg:s+' 🌀 COIL'});
+    if(!p.cross200&&d.cross200==='up')alerts.push({type:'cross',msg:s+' ↑ Crossed 200 EMA'});
+    if(!p.cross200&&d.cross200==='dn')alerts.push({type:'bear',msg:s+' ↓ Broke 200 EMA'});
+  });
+  setSnap(newSnap);
+  return alerts;
+}
+function showAlerts(alerts){
+  var panel=document.getElementById('alertPanel');
+  if(!alerts.length){panel.className='';return;}
+  var clsMap={bull:'al-bull',bear:'al-bear',brk:'al-brk',vol:'al-vol',phase:'al-phase',coil:'al-coil',cross:'al-cross'};
+  var h='';
+  alerts.forEach(function(a){h+='<span class="al '+(clsMap[a.type]||'')+'">'+esc(a.msg)+'</span>';});
+  document.getElementById('alertItems').innerHTML=h;
+  panel.className='on';
+}
+function dismissAlerts(){document.getElementById('alertPanel').className='';}
+
+// ── EXCHANGE ──
+function setX(e){
+  exch=e;
+  document.getElementById('bns').className='eb'+(e==='NS'?' on':'');
+  document.getElementById('bbo').className='eb'+(e==='BO'?' on':'');
+}
+
+// ── PARSE ──
+function parseSyms(raw){
+  return raw.split(/[\n,;\s]+/).map(function(s){
+    s=s.trim().toUpperCase();if(!s)return null;
+    return s.indexOf('.')>=0?s:s+'.'+exch;
+  }).filter(Boolean);
+}
+
+// ── DB BAR ──
+function renderDb(){
+  var n=db.length;
+  document.getElementById('dbCount').textContent=n;
+  document.getElementById('rbtn').disabled=!n;
+  var errCount=db.filter(function(t){return rows[t.sym]&&rows[t.sym].err;}).length;
+  var badge=document.getElementById('errBadge');
+  if(errCount>0){badge.textContent=errCount+' INVALID';badge.style.display='';}
+  else{badge.style.display='none';}
+}
+function del(sym){
+  db=db.filter(function(t){return t.sym!==sym;});
+  watchlist.delete(sym);wlSave();save();delete rows[sym];
+  renderDb();renderTbl();updateWLCount();
+  if(document.getElementById('modal').classList.contains('on'))renderModal();
+}
+function clearAllDB(){
+  if(!db.length)return;
+  if(!confirm('Remove all '+db.length+' stocks from DB?'))return;
+  db=[];rows={};watchlist=new Set();
+  save();wlSave();renderDb();renderTbl();updateWLCount();updateStats();
+  document.getElementById('sbar').className='';
+  toast('All stocks cleared','ok');
+}
+function removeInvalid(){
+  var invalid=db.filter(function(t){return rows[t.sym]&&rows[t.sym].err;});
+  if(!invalid.length){toast('No invalid stocks found','');return;}
+  invalid.forEach(function(t){db=db.filter(function(x){return x.sym!==t.sym;});delete rows[t.sym];});
+  save();renderDb();renderTbl();renderModal();
+  toast(invalid.length+' invalid tickers removed','ok');
+}
+
+// ── MODAL ──
+function openModal(){renderModal();document.getElementById('modal').className='on';}
+function closeModal(){document.getElementById('modal').className='';}
+function renderModal(){
+  var errCount=db.filter(function(t){return rows[t.sym]&&rows[t.sym].err;}).length;
+  var okCount=db.filter(function(t){return rows[t.sym]&&rows[t.sym].price;}).length;
+  var loadCount=db.filter(function(t){return rows[t.sym]&&rows[t.sym].loading;}).length;
+  var newCount=db.filter(function(t){return !rows[t.sym];}).length;
+  document.getElementById('modalStats').textContent=
+    db.length+' stocks  ✓ '+okCount+'  ✗ '+errCount+(loadCount?' ⟳ '+loadCount:'')+(newCount?' ● '+newCount+' pending':'');
+  document.getElementById('rmInvalidBtn').style.display=errCount>0?'':'none';
+  var h='';
+  db.forEach(function(t){
+    var sym=t.sym,s=sym.replace(/\.(NS|BO)$/,''),xt=sym.endsWith('.BO')?'.BO':'.NS';
+    var meta=getInd(sym),r=rows[sym];
+    var statusHtml,invalid=false;
+    if(!r){statusHtml='<span class="ms-new">not fetched</span>';}
+    else if(r.loading){statusHtml='<span class="ms-load">⟳ fetching</span>';}
+    else if(r.err){statusHtml='<span class="ms-err">✗ '+esc(r.err.substring(0,22))+'</span>';invalid=true;}
+    else{statusHtml='<span class="ms-ok">✓ '+(r.price?'₹'+r.price.toFixed(0):'OK')+'</span>';}
+    h+='<div class="mrow" style="'+(invalid?'background:rgba(255,68,102,.04);':'')+'">'
+      +'<span class="mrow-num">#'+t.n+'</span>'
+      +'<span class="mrow-sym">'+s+'<span style="font-size:9px;color:var(--mu);margin-left:2px">'+xt+'</span></span>'
+      +'<span class="mrow-name">'+esc((r&&r.name)||meta.name||'')+'</span>'
+      +'<span class="mrow-ind">'+esc(meta.industry||'')+'</span>'
+      +'<span class="mrow-status">'+statusHtml+'</span>'
+      +'<button class="mrow-del" onclick="del(\x27'+sym+'\x27)">✕</button>'
+      +'</div>';
+  });
+  if(!db.length)h='<div style="padding:40px;text-align:center;color:var(--mu)">No stocks in DB.</div>';
+  document.getElementById('modalBody').innerHTML=h;
+}
+
+// ── EMA ──
+function calcEMAArr(closes,period){
+  if(!closes||closes.length<period)return null;
+  var k=2/(period+1),ema=0,arr=[],i;
+  for(i=0;i<period;i++)ema+=closes[i];
+  ema/=period;arr.push(ema);
+  for(i=period;i<closes.length;i++){ema=closes[i]*k+ema*(1-k);arr.push(ema);}
+  return arr;
+}
+
+// FIXED: streak counts consecutive days where CLOSING PRICE is above (positive) or below (negative) EMA
+// offset aligns closes with emaArr (emaArr starts at index `period` of closes)
+function streakVsEMA(closes,emaArr){
+  if(!closes||!emaArr||!emaArr.length)return 0;
+  var offset=closes.length-emaArr.length;  // how many initial closes were used for warmup
+  var n=emaArr.length;
+  var lastAbove=closes[closes.length-1]>=emaArr[n-1];
+  var count=0;
+  for(var i=n-1;i>=0;i--){
+    var closeAbove=closes[offset+i]>=emaArr[i];
+    if(closeAbove===lastAbove)count++;
+    else break;
+  }
+  return lastAbove?count:-count;
+}
+
+// ── BULL / PHASE ──
+function getBull(p,e20,e50,e100,e200){
+  if(p==null||e20==null||e50==null||e100==null||e200==null)return null;
+  if(p>e20&&e20>e50&&e50>e100&&e100>e200)return 1;
+  if(p<e20&&e20<e50&&e50<e100&&e100<e200)return -1;
+  return 0;
+}
+function getPhase(p,e20,e50,e100,e200){
+  if(p==null||e200==null)return null;
+  var a200=p>e200,a50=e50!=null&&p>e50,a20=e20!=null&&p>e20;
+  if(a200&&a50&&a20)return 2;
+  if(!a200&&!a50&&!a20)return 4;
+  if(a200&&!a20)return 3;
+  return 1;
+}
+
+// ── ATH FETCH (monthly 5yr — lightweight) ──
+function fetchATH(sym){
+  var yahoo='https://query1.finance.yahoo.com/v8/finance/chart/'+encodeURIComponent(sym)+'?interval=1mo&range=5y';
+  return fetch('https://corsproxy.io/?'+encodeURIComponent(yahoo),{signal:AbortSignal.timeout(15000)})
+    .then(function(r){if(!r.ok)return null;return r.json();})
+    .then(function(j){
+      if(!j)return null;
+      var res=j.chart&&j.chart.result&&j.chart.result[0];if(!res)return null;
+      var q=(res.indicators&&res.indicators.quote&&res.indicators.quote[0])||{};
+      var highs=(q.high||[]).filter(function(v){return v!=null;});
+      return highs.length?Math.max.apply(null,highs):null;
     })
-    .then(function(json) {
-      return parseYahoo(sym, json);
+    .catch(function(){return null;});
+}
+
+// ── MAIN FETCH — 2yr daily for accurate EMA200 streak ──
+// FIX: range=2y gives ~504 bars. EMA200 warmup=200 bars → ~304 bars of streak history.
+// With range=1y (~252 bars) EMA200 only had ~52 bars of history causing wrong ~50d streaks.
+function fetchMain(sym){
+  var yahoo='https://query1.finance.yahoo.com/v8/finance/chart/'+encodeURIComponent(sym)+'?interval=1d&range=3y&includePrePost=false';
+  return fetch('https://corsproxy.io/?'+encodeURIComponent(yahoo),{signal:AbortSignal.timeout(25000)})
+    .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
+    .then(function(j){
+      if(j.chart&&j.chart.error)throw new Error(j.chart.error.description||'Yahoo error');
+      var res=j.chart&&j.chart.result&&j.chart.result[0];
+      if(!res)throw new Error('No data');
+      var m=res.meta||{};
+      var q=(res.indicators&&res.indicators.quote&&res.indicators.quote[0])||{};
+      var rawC=q.close||[],rawV=q.volume||[],rawH=q.high||[],rawL=q.low||[],closes=[],highs=[],lows=[],vols=[],lc=null,lh=null,ll=null,i;
+      for(i=0;i<rawC.length;i++){
+        if(rawC[i]!=null){lc=rawC[i];closes.push(lc);}else if(lc!=null)closes.push(lc);
+        if(rawH[i]!=null){lh=rawH[i];highs.push(lh);}else if(lh!=null)highs.push(lh);
+        if(rawL[i]!=null){ll=rawL[i];lows.push(ll);}else if(ll!=null)lows.push(ll);
+        vols.push(rawV[i]!=null?rawV[i]:0);
+      }
+      var price=m.regularMarketPrice||(closes.length?closes[closes.length-1]:null);
+      if(!price)throw new Error('No price');
+      var prev=closes.length>=2?closes[closes.length-2]:null;
+
+      // EMAs on full 2yr array — more warmup = more accurate streaks
+      var e20a=calcEMAArr(closes,20),e50a=calcEMAArr(closes,50);
+      var e100a=calcEMAArr(closes,100),e200a=calcEMAArr(closes,200);
+      function lv(a){return a&&a.length?a[a.length-1]:null;}
+      var e20=lv(e20a),e50=lv(e50a),e100=lv(e100a),e200=lv(e200a);
+
+      // 52W H/L from last 252 CLOSES — track index simultaneously for days-from calc
+      var last252=closes.slice(-252);
+      var hi52=-Infinity,lo52=Infinity,hiIdx52=0,loIdx52=0;
+      for(var k52=0;k52<last252.length;k52++){
+        if(last252[k52]>hi52){hi52=last252[k52];hiIdx52=k52;}
+        if(last252[k52]<lo52){lo52=last252[k52];loIdx52=k52;}
+      }
+      if(!last252.length){hi52=null;lo52=null;}
+      // daysFrH/L = trading days since the close 52W high/low occurred
+      var daysFrH=last252.length?last252.length-1-hiIdx52:null;
+      var daysFrL=last252.length?last252.length-1-loIdx52:null;
+      // Also fold in Yahoo meta fields for % calc (intraday extreme may differ from close)
+      if(m.fiftyTwoWeekHigh&&hi52)hi52=Math.max(hi52,m.fiftyTwoWeekHigh);
+      else if(m.fiftyTwoWeekHigh)hi52=m.fiftyTwoWeekHigh;
+      if(m.fiftyTwoWeekLow&&lo52)lo52=Math.min(lo52,m.fiftyTwoWeekLow);
+      else if(m.fiftyTwoWeekLow)lo52=m.fiftyTwoWeekLow;
+
+      // 200 EMA cross detection: check if YESTERDAY's close was on opposite side of EMA200
+      // prev < prevEMA200 and price >= e200 → crossed above (bullish)
+      // prev > prevEMA200 and price <= e200 → crossed below (bearish)
+      var cross200=null;
+      if(e200a&&e200a.length>=2&&prev!=null&&e200!=null){
+        var prevE200=e200a[e200a.length-2];
+        if(prev<prevE200&&price>=e200)cross200='up';
+        else if(prev>prevE200&&price<=e200)cross200='dn';
+      }
+
+      // 5d range / COIL
+      var last5=closes.slice(-5);
+      var range5d=last5.length>=5?(Math.max.apply(null,last5)-Math.min.apply(null,last5))/price*100:null;
+      var coil=range5d!=null&&range5d<2.5;
+
+      // 4-week range (20 trading days)
+      var last20=closes.slice(-20);
+      var range4w=last20.length>=10
+        ?(Math.max.apply(null,last20)-Math.min.apply(null,last20))/price*100
+        :null;
+
+      // Volume
+      var cleanV=vols.filter(function(v){return v>0;});
+      var todVol=cleanV.length?cleanV[cleanV.length-1]:null;
+      var wkSlice=cleanV.slice(-6,-1);
+      var moSlice=cleanV.slice(-22,-1);
+      var qtrSlice=cleanV.slice(-63,-1); // ~63 trading days = 1 quarter
+      var wkAvg=wkSlice.length?wkSlice.reduce(function(a,b){return a+b;},0)/wkSlice.length:null;
+      var moAvg=moSlice.length?moSlice.reduce(function(a,b){return a+b;},0)/moSlice.length:null;
+      var qtrAvgVol=qtrSlice.length>=20?qtrSlice.reduce(function(a,b){return a+b;},0)/qtrSlice.length:null;
+      var volSpike=!!(todVol&&moAvg&&todVol>2*moAvg);
+      // Vol ratio vs quarterly avg — week avg / qtr avg
+      var volRatio=(wkAvg&&qtrAvgVol&&qtrAvgVol>0)?wkAvg/qtrAvgVol:null;
+
+      // ── ADR: Average Daily Range (14d) — (high-low)/close * 100 ──
+      var adrSlice14=[];
+      for(var ai=Math.max(0,highs.length-14);ai<highs.length;ai++){
+        if(highs[ai]!=null&&lows[ai]!=null&&closes[ai]&&closes[ai]>0)
+          adrSlice14.push((highs[ai]-lows[ai])/closes[ai]*100);
+      }
+      var adr=adrSlice14.length?adrSlice14.reduce(function(a,b){return a+b;},0)/adrSlice14.length:null;
+
+      // ── AWR: Average Weekly Range (10 weeks = 50 days, sample weekly bars) ──
+      // Build weekly OHLC by grouping every 5 daily bars
+      var weeklyH=[],weeklyL=[],weeklyC=[];
+      for(var wi=0;wi<closes.length-4;wi+=5){
+        var wH=Math.max.apply(null,highs.slice(wi,wi+5).filter(function(x){return x!=null;}));
+        var wL=Math.min.apply(null,lows.slice(wi,wi+5).filter(function(x){return x!=null;}));
+        var wC=closes[wi+4]||closes[wi+3]||closes[wi+2];
+        if(wH&&wL&&wC){weeklyH.push(wH);weeklyL.push(wL);weeklyC.push(wC);}
+      }
+      var awrSlice=[];
+      for(var awi=Math.max(0,weeklyH.length-10);awi<weeklyH.length;awi++){
+        if(weeklyC[awi]>0)awrSlice.push((weeklyH[awi]-weeklyL[awi])/weeklyC[awi]*100);
+      }
+      var awr=awrSlice.length?awrSlice.reduce(function(a,b){return a+b;},0)/awrSlice.length:null;
+
+      // ── WEEKLY EMAs (from weekly closes) ──
+      var we20a=calcEMAArr(weeklyC,20),we50a=calcEMAArr(weeklyC,50);
+      var we100a=calcEMAArr(weeklyC,100),we200a=calcEMAArr(weeklyC,200);
+      var we20=lv(we20a),we50=lv(we50a),we100=lv(we100a),we200=lv(we200a);
+      var wPrice=weeklyC.length?weeklyC[weeklyC.length-1]:price;
+      var wc_100gt200=(we100!=null&&we200!=null)?we100>we200:null;
+      var wc_50gt100=(we50!=null&&we100!=null)?we50>we100:null;
+      var wc_20gt50=(we20!=null&&we50!=null)?we20>we50:null;
+      var wc_pgt20=(wPrice!=null&&we20!=null)?wPrice>we20:null;
+
+      // daysFrH/L computed above during 52W H/L scan
+
+      // EMA cross signals (today vs yesterday) — detect price crossing any EMA today
+      // cross = price was below EMA yesterday, above today (or vice versa)
+      var emaCrossSignals=[];
+      function chkCross(label,emaArr){
+        if(!emaArr||emaArr.length<2||closes.length<2)return;
+        var n=emaArr.length;
+        var off=closes.length-n;
+        var curClose=closes[closes.length-1];
+        var prevClose=closes[closes.length-2];
+        var curEMA=emaArr[n-1];
+        var prevEMA=emaArr[n-2];
+        if(prevClose<prevEMA&&curClose>=curEMA)emaCrossSignals.push({ema:label,dir:'up'});
+        else if(prevClose>prevEMA&&curClose<=curEMA)emaCrossSignals.push({ema:label,dir:'dn'});
+      }
+      chkCross('EMA20',e20a);
+      chkCross('EMA50',e50a);
+      chkCross('EMA100',e100a);
+      chkCross('EMA200',e200a);
+
+      var c_100gt200=(e100!=null&&e200!=null)?e100>e200:null;
+      var c_50gt100=(e50!=null&&e100!=null)?e50>e100:null;
+      var c_20gt50=(e20!=null&&e50!=null)?e20>e50:null;
+      var c_pgt20=(price!=null&&e20!=null)?price>e20:null;
+
+      return{
+        sym:sym,err:null,
+        name:m.shortName||m.longName||sym,
+        price:price,prev:prev,
+        pch:prev?(price-prev)/prev*100:null,
+        hi52:hi52,lo52:lo52,
+        pfh:price&&hi52?(price-hi52)/hi52*100:null,
+        pfl:price&&lo52?(price-lo52)/lo52*100:null,
+        bo52h:!!(price&&hi52&&price>=hi52*0.999),
+        bo52l:!!(price&&lo52&&price<=lo52*1.001),
+        mcap:m.marketCap?m.marketCap/1e7:null,
+        e20:e20,e50:e50,e100:e100,e200:e200,
+        c_100gt200:c_100gt200,c_50gt100:c_50gt100,c_20gt50:c_20gt50,c_pgt20:c_pgt20,
+        s20:e20a?streakVsEMA(closes,e20a):0,
+        s50:e50a?streakVsEMA(closes,e50a):0,
+        s100:e100a?streakVsEMA(closes,e100a):0,
+        s200:e200a?streakVsEMA(closes,e200a):0,
+        bull:getBull(price,e20,e50,e100,e200),
+        phase:getPhase(price,e20,e50,e100,e200),
+        todVol:todVol,wkAvg:wkAvg,moAvg:moAvg,
+        volSpike:volSpike,range5d:range5d,coil:coil,
+        range4w:range4w,
+        qtrAvgVol:qtrAvgVol,volRatio:volRatio,
+        emaCrossSignals:emaCrossSignals,
+        cross200:cross200,
+        adr:adr,awr:awr,
+        daysFrH:daysFrH,daysFrL:daysFrL,
+        wc_100gt200:wc_100gt200,wc_50gt100:wc_50gt100,wc_20gt50:wc_20gt50,wc_pgt20:wc_pgt20,
+        ath:null,pfath:null
+      };
     });
 }
 
-function parseYahoo(sym, json) {
-  if (json.error) throw new Error(json.error);
-  var res = json.chart && json.chart.result && json.chart.result[0];
-  if (!res) throw new Error('No data from Yahoo');
-  var m = res.meta || {};
-  var q = (res.indicators && res.indicators.quote && res.indicators.quote[0]) || {};
-  var closes = (q.close || []).filter(function(v) { return v != null; });
-  var price = m.regularMarketPrice || (closes.length ? closes[closes.length-1] : null);
-  var prev  = m.chartPreviousClose || (closes.length >= 2 ? closes[closes.length-2] : null);
-  if (!price) throw new Error('No price returned');
-  return {
-    sym:   sym,
-    name:  m.shortName || m.longName || sym,
-    price: price,
-    prev:  prev,
-    pch:   (price && prev) ? (price - prev) / prev * 100 : null,
-    hi52:  m.fiftyTwoWeekHigh  || null,
-    lo52:  m.fiftyTwoWeekLow   || null,
-    mcap:  m.marketCap ? m.marketCap / 1e7 : null,
-    err:   null
-  };
+// ── FETCH ONE (main + ATH parallel) ──
+function fetchOne(sym){
+  return Promise.all([fetchMain(sym),fetchATH(sym)])
+    .then(function(res){
+      var d=res[0];
+      d.ath=res[1];
+      d.pfath=d.price&&d.ath?(d.price-d.ath)/d.ath*100:null;
+      cacheSet(sym,d);return d;
+    });
 }
 
-// ─────────────────────────────────────────
-// ADD & FETCH
-// ─────────────────────────────────────────
-function addAndFetch() {
-  var raw = document.getElementById('tickerInput').value.trim();
-  if (!raw) { showToast('Type tickers first', 'err'); return; }
-  var syms = parseTickers(raw);
-  if (!syms.length) { showToast('No valid tickers', 'err'); return; }
+// ── ADD & FETCH ──
+function addFetch(){
+  var raw=document.getElementById('ti').value.trim();
+  if(!raw){toast('Type tickers first','er');return;}
+  var syms=parseSyms(raw);if(!syms.length){toast('No valid tickers','er');return;}
+  var added=[],n=nextN();
+  syms.forEach(function(s){if(!has(s)){db.push({n:n++,sym:s});added.push(s);}});
+  save();document.getElementById('ti').value='';renderDb();
+  if(!added.length){toast('All already in DB','');return;}
+  toast(added.length+' added — fetching...','ok');go(added);
+}
+function refreshAll(){if(!db.length)return;go(db.map(function(t){return t.sym;}));}
 
-  var added = [];
-  var n = dbNextN();
-  var today = new Date().toISOString().slice(0, 10);
-  for (var i = 0; i < syms.length; i++) {
-    if (!dbHas(syms[i])) {
-      tickerDb.push({ n: n++, sym: syms[i], added: today });
-      added.push(syms[i]);
-    }
+// ── FETCH LOOP — batched to avoid Yahoo rate limits ──
+// Batch size 8, 400ms between batches → ~1000 stocks ≈ 50 batches ≈ 20s total
+var BATCH_SIZE=8, BATCH_DELAY=400;
+function go(syms){
+  document.getElementById('sbar').className='on';
+  var toFetch=[],done=0,total=0;
+  syms.forEach(function(s){
+    var cached=cacheGet(s);
+    if(cached)rows[s]=cached;else{toFetch.push(s);rows[s]={sym:s,loading:true};}
+  });
+  total=toFetch.length;
+  renderTbl();updateStats();
+  if(!total){
+    document.getElementById('lastUpd').textContent='From cache: '+new Date().toLocaleTimeString('en-IN');
+    toast('All '+syms.length+' from cache','ok');updateCacheNote();return;
   }
-  dbSave();
-  document.getElementById('tickerInput').value = '';
-  renderDb();
-
-  if (!added.length) { showToast('All already in DB', ''); return; }
-  showToast(added.length + ' added — fetching prices...', 'ok');
-  fetchSymbols(added);
+  setP(0,total);
+  // Split into batches and run with delay
+  var batches=[];
+  for(var i=0;i<toFetch.length;i+=BATCH_SIZE)batches.push(toFetch.slice(i,i+BATCH_SIZE));
+  function runBatch(bi){
+    if(bi>=batches.length)return;
+    var batch=batches[bi];
+    var promises=batch.map(function(sym){
+      return fetchOne(sym)
+        .then(function(d){rows[sym]=d;})
+        .catch(function(e){rows[sym]={sym:sym,err:e.message||'Failed'};})
+        .finally(function(){
+          done++;setP(done,total);updateStats();renderTbl();
+          if(done===total){
+            document.getElementById('lastUpd').textContent='Updated: '+new Date().toLocaleTimeString('en-IN');
+            toast('Done — '+total+' fetched','ok');updateCacheNote();
+            showAlerts(checkAlerts());
+          }
+        });
+    });
+    Promise.all(promises).then(function(){
+      setTimeout(function(){runBatch(bi+1);},BATCH_DELAY);
+    });
+  }
+  runBatch(0);
 }
 
-function refreshAll() {
-  if (!tickerDb.length) return;
-  var syms = tickerDb.map(function(t) { return t.sym; });
-  showToast('Refreshing ' + syms.length + ' prices...', '');
-  fetchSymbols(syms);
+// ── SORT ──
+var COLS=['','sym','name','industry','bull','phase','coil','price','pch','mcap','pfh','pfl','pfath','range5d','range4w','adr','awr','daysFrH','daysFrL','e20','e50','e100','e200','c_100gt200','c_50gt100','c_20gt50','c_pgt20','wc_100gt200','wc_50gt100','wc_20gt50','wc_pgt20','s20','s50','s100','s200','todVol','wkAvg','moAvg','qtrAvgVol'];
+function sortBy(col){
+  sortCol===col?sortDir*=-1:(sortCol=col,sortDir=1);
+  document.getElementById('colHeaders').querySelectorAll('th').forEach(function(th,i){
+    th.className=th.className.replace(/ sort-(asc|desc)/g,'');
+    if(COLS[i]===sortCol)th.className+=(sortDir===1?' sort-asc':' sort-desc');
+  });
+  try{localStorage.setItem('sp5sort',JSON.stringify({col:sortCol,dir:sortDir}));}catch(e){}
+  renderTbl();
+}
+function loadSortPref(){
+  try{
+    var s=JSON.parse(localStorage.getItem('sp5sort'));
+    if(s&&s.col){sortCol=s.col;sortDir=s.dir||1;
+      // Restore header indicator after table renders
+      setTimeout(function(){
+        document.getElementById('colHeaders').querySelectorAll('th').forEach(function(th,i){
+          th.className=th.className.replace(/ sort-(asc|desc)/g,'');
+          if(COLS[i]===sortCol)th.className+=(sortDir===1?' sort-asc':' sort-desc');
+        });
+      },200);
+    }
+  }catch(e){}
 }
 
-// ─────────────────────────────────────────
-// FETCH SYMBOLS — parallel, live updates
-// ─────────────────────────────────────────
-function fetchSymbols(syms) {
-  showStatusBar();
-  setProgress(0, syms.length);
-  var done = 0;
+// ── FILTER HELPERS ──
+function gv(id){var el=document.getElementById(id);return el?el.value:'';}
 
-  syms.forEach(function(sym) {
-    // Show loading row immediately
-    tableData[sym] = { sym: sym, loading: true };
-    renderTable();
+// ── SMART FILTER HELPERS ──
+// pctEMA20: (price - EMA20) / EMA20 * 100
+function getPctEMA20(d){
+  if(d.price==null||d.e20==null||d.e20===0)return null;
+  return(d.price-d.e20)/d.e20*100;
+}
+// Volume ratio: today vol / monthly avg
+function getVolRatio(d){
+  if(!d.todVol||!d.moAvg||d.moAvg===0)return null;
+  return d.todVol/d.moAvg;
+}
 
-    fetchPrice(sym)
-      .then(function(d) {
-        tableData[sym] = d;
-      })
-      .catch(function(e) {
-        tableData[sym] = { sym: sym, name: sym, err: e.message || 'Failed', loading: false };
-      })
-      .finally(function() {
-        done++;
-        setProgress(done, syms.length);
-        updateStats();
-        renderTable();
-        if (done === syms.length) {
-          document.getElementById('lastUpd').textContent = 'Updated: ' + new Date().toLocaleTimeString('en-IN');
-          showToast('Done — ' + syms.length + ' prices loaded', 'ok');
-        }
-      });
+function applyFilters(){updateFilterBadge();renderTbl();}
+
+function clearAllFilters(){
+  ['f_sym','f_name','f_industry','f_bull','f_phase','f_coil',
+   'f_price','f_pch','f_mcap','f_pfh','f_pfl','f_range5d','f_range4w','f_adr','f_daysFrH','f_daysFrL',
+   'f_c100gt200','f_c50gt100','f_c20gt50','f_cpgt20',
+   'f_wc100gt200','f_wc50gt100','f_wc20gt50','f_wcpgt20','f_volratio_wk'].forEach(function(id){
+    var el=document.getElementById(id);if(el)el.value='';
+  });
+  clearSmartFilters();
+  updateFilterBadge();renderTbl();
+  toast('All filters cleared','ok');
+}
+function clearSmartFilters(){
+  ['sf_pullback','sf_volratio','sf_bo52'].forEach(function(id){
+    var el=document.getElementById(id);if(el)el.value='';
+  });
+  ['presetS2Bull','presetMomentum','presetCoilBO'].forEach(function(id){
+    var el=document.getElementById(id);if(el)el.classList.remove('on');
+  });
+  document.getElementById('sfClearBtn').style.display='none';
+  updateFilterBadge();renderTbl();
+}
+function applyPreset(name){
+  // Clear smart filters first
+  ['sf_pullback','sf_volratio','sf_bo52'].forEach(function(id){
+    var el=document.getElementById(id);if(el)el.value='';
+  });
+  // Toggle off if already on
+  var btn=document.getElementById('preset'+name.charAt(0).toUpperCase()+name.slice(1));
+  // Find button by preset name
+  var btnMap={s2bull:'presetS2Bull',momentum:'presetMomentum',coilbo:'presetCoilBO'};
+  var btnEl=document.getElementById(btnMap[name]);
+  var wasOn=btnEl&&btnEl.classList.contains('on');
+  ['presetS2Bull','presetMomentum','presetCoilBO'].forEach(function(id){
+    var el=document.getElementById(id);if(el)el.classList.remove('on');
+  });
+  if(wasOn){
+    // Clear preset column filters too
+    ['f_bull','f_phase','f_coil','f_c100gt200','f_c50gt100','f_c20gt50','f_cpgt20'].forEach(function(id){
+      var el=document.getElementById(id);if(el)el.value='';
+    });
+    document.getElementById('sfClearBtn').style.display='none';
+    updateFilterBadge();renderTbl();return;
+  }
+  if(btnEl)btnEl.classList.add('on');
+  document.getElementById('sfClearBtn').style.display='';
+  // Apply preset filters
+  function setv(id,v){var el=document.getElementById(id);if(el)el.value=v;}
+  if(name==='s2bull'){
+    setv('f_bull','1');        // TREND = BULL
+    setv('f_phase','2');       // PHASE = S2 UP
+    setv('f_c100gt200','1');   // 100>200 YES
+    setv('f_c50gt100','1');    // 50>100 YES
+    setv('f_c20gt50','1');     // 20>50 YES
+    setv('f_cpgt20','1');      // P>20 YES
+  } else if(name==='momentum'){
+    setv('f_bull','1');        // TREND = BULL
+    setv('f_phase','2');       // S2 UP
+    setv('sf_volratio','1.5'); // Vol >1.5x
+    setv('sf_pullback','above_ema20'); // Price above EMA20
+    setv('f_c100gt200','1');
+    setv('f_c50gt100','1');
+  } else if(name==='coilbo'){
+    setv('f_coil','1');        // COIL = yes
+    setv('f_pfh','near');      // Near 52W High
+  }
+  updateFilterBadge();renderTbl();
+}
+
+function updateFilterBadge(){
+  var count=0;
+  ['f_sym','f_name','f_industry'].forEach(function(id){if(gv(id).trim())count++;});
+  ['f_bull','f_phase','f_coil','f_price','f_pch','f_mcap','f_pfh','f_pfl',
+   'f_range5d','f_range4w','f_adr','f_daysFrH','f_daysFrL',
+   'f_c100gt200','f_c50gt100','f_c20gt50','f_cpgt20',
+   'f_wc100gt200','f_wc50gt100','f_wc20gt50','f_wcpgt20','f_volratio_wk',
+   'sf_pullback','sf_volratio','sf_bo52'].forEach(function(id){if(gv(id)!=='')count++;});
+  var badge=document.getElementById('fBadge');
+  var btn=document.getElementById('fClearBtn');
+  if(count>0){badge.textContent=count+' filter'+(count>1?'s':'');badge.style.display='';btn.style.display='';}
+  else{badge.style.display='none';btn.style.display='none';}
+  // Highlight active selects
+  ['f_bull','f_phase','f_coil','f_price','f_pch','f_mcap','f_pfh','f_pfl',
+   'f_range5d','f_range4w','f_adr','f_daysFrH','f_daysFrL',
+   'f_c100gt200','f_c50gt100','f_c20gt50','f_cpgt20',
+   'f_wc100gt200','f_wc50gt100','f_wc20gt50','f_wcpgt20','f_volratio_wk',
+   'sf_pullback','sf_volratio','sf_bo52'].forEach(function(id){
+    var el=document.getElementById(id);
+    if(el)el.className=el.className.replace(/ act/g,'')+(el.value!==''?' act':'');
+  });
+  // Smart clear btn
+  var sfAny=gv('sf_pullback')!==''||gv('sf_volratio')!==''||gv('sf_bo52')!=='';
+  var sfBtn=document.getElementById('sfClearBtn');
+  if(sfBtn){
+    var hasPreset=['presetS2Bull','presetMomentum','presetCoilBO'].some(function(id){
+      var el=document.getElementById(id);return el&&el.classList.contains('on');
+    });
+    sfBtn.style.display=(sfAny||hasPreset)?'':'none';
+  }
+}
+
+// ── FILTER ──
+function filteredData(){
+  var q=(document.getElementById('searchBox').value||'').toLowerCase().trim();
+  var data=db.map(function(t){
+    var d=Object.assign({},rows[t.sym]||{sym:t.sym});
+    var meta=getInd(t.sym);
+    if(meta.name&&!d.name)d.name=meta.name;
+    d.industry=meta.industry||'';
+    return d;
+  });
+  if(showWL)data=data.filter(function(d){return watchlist.has(d.sym);});
+  if(q)data=data.filter(function(d){
+    return d.sym.toLowerCase().indexOf(q)>=0
+      ||(d.name||'').toLowerCase().indexOf(q)>=0
+      ||(d.industry||'').toLowerCase().indexOf(q)>=0;
+  });
+
+  // ── column text filters ──
+  var fSym=gv('f_sym').toUpperCase().trim();
+  var fName=gv('f_name').toLowerCase().trim();
+  var fInd=gv('f_industry').toLowerCase().trim();
+  var fBull=gv('f_bull'),fPhase=gv('f_phase'),fCoil=gv('f_coil');
+  var fPrice=gv('f_price'),fPch=gv('f_pch'),fMcap=gv('f_mcap');
+  var fPfh=gv('f_pfh'),fPfl=gv('f_pfl');
+  var fC100=gv('f_c100gt200'),fC50=gv('f_c50gt100'),fC20=gv('f_c20gt50'),fCp20=gv('f_cpgt20');
+  var fWC100=gv('f_wc100gt200'),fWC50=gv('f_wc50gt100'),fWC20=gv('f_wc20gt50'),fWCp20=gv('f_wcpgt20');
+
+  // ── smart filters ──
+  var sfPullback=gv('sf_pullback'),sfVolRatio=gv('sf_volratio'),sfBo52=gv('sf_bo52');
+
+  data=data.filter(function(d){
+    // Always show loading rows
+    if(d.loading)return true;
+    // Text filters (apply even before price loaded)
+    if(fSym&&d.sym.toUpperCase().indexOf(fSym)<0)return false;
+    if(fName&&(d.name||'').toLowerCase().indexOf(fName)<0)return false;
+    if(fInd&&(d.industry||'')!==fInd)return false;
+    // Skip value filters for unloaded rows
+    if(!d.price)return true;
+
+    // ── Categorical ──
+    if(fBull!==''&&String(d.bull)!==fBull)return false;
+    if(fPhase!==''&&String(d.phase)!==fPhase)return false;
+    if(fCoil!==''&&String(d.coil?1:0)!==fCoil)return false;
+    if(fC100!==''&&String(d.c_100gt200?1:0)!==fC100)return false;
+    if(fC50!==''&&String(d.c_50gt100?1:0)!==fC50)return false;
+    if(fC20!==''&&String(d.c_20gt50?1:0)!==fC20)return false;
+    if(fCp20!==''&&String(d.c_pgt20?1:0)!==fCp20)return false;
+    // Weekly EMA conditions
+    if(fWC100!==''&&String(d.wc_100gt200?1:0)!==fWC100)return false;
+    if(fWC50!==''&&String(d.wc_50gt100?1:0)!==fWC50)return false;
+    if(fWC20!==''&&String(d.wc_20gt50?1:0)!==fWC20)return false;
+    if(fWCp20!==''&&String(d.wc_pgt20?1:0)!==fWCp20)return false;
+
+    // ── Price dropdown ──
+    if(fPrice){
+      var rng=fPrice.split('-').map(Number);
+      if(d.price<rng[0]||d.price>rng[1])return false;
+    }
+    // ── % Day dropdown ──
+    if(fPch&&d.pch!=null){
+      if(fPch==='up2'&&d.pch<=2)return false;
+      if(fPch==='up1'&&d.pch<=1)return false;
+      if(fPch==='dn1'&&d.pch>=-1)return false;
+      if(fPch==='dn2'&&d.pch>=-2)return false;
+      if(fPch==='flat'&&(d.pch<-1||d.pch>1))return false;
+    }
+    // ── MCap dropdown ──
+    if(fMcap&&d.mcap!=null){
+      if(fMcap==='large'&&d.mcap<20000)return false;
+      if(fMcap==='mid'&&(d.mcap<5000||d.mcap>=20000))return false;
+      if(fMcap==='small'&&(d.mcap<500||d.mcap>=5000))return false;
+      if(fMcap==='micro'&&d.mcap>=500)return false;
+    }
+    // ── % 52W High dropdown ──
+    if(fPfh&&d.pfh!=null){
+      if(fPfh==='near'&&d.pfh<-5)return false;
+      if(fPfh==='mid'&&(d.pfh<-10||d.pfh>=-5))return false;
+      if(fPfh==='down'&&(d.pfh<-20||d.pfh>=-10))return false;
+      if(fPfh==='deep'&&d.pfh>=-20)return false;
+    }
+    // ── % 52W Low dropdown ──
+    if(fPfl&&d.pfl!=null){
+      if(fPfl==='near'&&d.pfl>10)return false;
+      if(fPfl==='mid'&&(d.pfl<=10||d.pfl>30))return false;
+      if(fPfl==='far'&&(d.pfl<=30||d.pfl>80))return false;
+      if(fPfl==='farther'&&d.pfl<=80)return false;
+    }
+    // ── 5D Range dropdown ──
+    var fRange5d=gv('f_range5d');
+    if(fRange5d&&d.range5d!=null){
+      if(fRange5d==='tight'&&d.range5d>=1)return false;
+      if(fRange5d==='coil'&&d.range5d>=2.5)return false;
+      if(fRange5d==='mid'&&(d.range5d<2.5||d.range5d>=5))return false;
+      if(fRange5d==='wide'&&d.range5d<5)return false;
+    }
+    // ── 4W Range dropdown ──
+    var fRange4w=gv('f_range4w');
+    if(fRange4w&&d.range4w!=null){
+      if(fRange4w==='tight'&&d.range4w>=5)return false;
+      if(fRange4w==='narrow'&&(d.range4w<5||d.range4w>=10))return false;
+      if(fRange4w==='mid'&&(d.range4w<10||d.range4w>=20))return false;
+      if(fRange4w==='wide'&&d.range4w<20)return false;
+    }
+    // ── ADR filter ──
+    var fAdr=gv('f_adr');
+    if(fAdr&&d.adr!=null){
+      if(fAdr==='tight'&&d.adr>=1)return false;
+      if(fAdr==='mid'&&(d.adr<1||d.adr>=3))return false;
+      if(fAdr==='wide'&&d.adr<3)return false;
+    }
+    // ── Days from 52W H/L filters ──
+    var fDfH=gv('f_daysFrH'),fDfL=gv('f_daysFrL');
+    if(fDfH&&d.daysFrH!=null){
+      if(fDfH==='fresh'&&d.daysFrH>=20)return false;
+      if(fDfH==='mid'&&(d.daysFrH<20||d.daysFrH>=60))return false;
+      if(fDfH==='old'&&d.daysFrH<60)return false;
+    }
+    if(fDfL&&d.daysFrL!=null){
+      if(fDfL==='fresh'&&d.daysFrL>=20)return false;
+      if(fDfL==='mid'&&(d.daysFrL<20||d.daysFrL>=60))return false;
+      if(fDfL==='old'&&d.daysFrL<60)return false;
+    }
+    // ── Vol ratio wk/qtr dropdown ──
+    var fVolRatioWk=gv('f_volratio_wk');
+    if(fVolRatioWk&&d.volRatio!=null){
+      var fvr=parseFloat(fVolRatioWk);
+      if(fVolRatioWk==='0.5'&&d.volRatio>=0.5)return false;
+      if(fVolRatioWk!=='0.5'&&d.volRatio<fvr)return false;
+    }
+
+    // ── SMART: % vs EMA20 pullback ──
+    if(sfPullback){
+      var pema20=getPctEMA20(d);
+      if(pema20==null)return false;
+      if(sfPullback==='pullback1'&&(pema20<-1||pema20>0))return false;
+      if(sfPullback==='pullback3'&&(pema20<-3||pema20>0))return false;
+      if(sfPullback==='pullback5'&&(pema20<-5||pema20>0))return false;
+      if(sfPullback==='above_ema20'&&pema20<=0)return false;
+      if(sfPullback==='below_ema20'&&pema20>=0)return false;
+    }
+    // ── SMART: Volume ratio ──
+    if(sfVolRatio){
+      var vr=getVolRatio(d);
+      if(vr==null||vr<parseFloat(sfVolRatio))return false;
+    }
+    // ── SMART: 52W Breakout ──
+    if(sfBo52){
+      if(sfBo52==='near'&&!(d.pfh!=null&&d.pfh>=-2&&d.pfh<=0))return false;
+      if(sfBo52==='at'&&!d.bo52h)return false;
+    }
+
+    return true;
+  });
+
+  if(sortCol){
+    data.sort(function(a,b){
+      var av=a[sortCol],bv=b[sortCol];
+      if(av==null||av==='')return 1;if(bv==null||bv==='')return -1;
+      if(typeof av==='boolean')av=av?1:0;if(typeof bv==='boolean')bv=bv?1:0;
+      if(typeof av==='string')return av.localeCompare(bv)*sortDir;
+      return(av-bv)*sortDir;
+    });
+  }
+  return data;
+}
+// ── RENDER HELPERS ──
+// EMA cross signal badge — shows ↑/↓ if price crossed this EMA today
+function emaSigFor(d, label){
+  if(!d.emaCrossSignals||!d.emaCrossSignals.length)return '';
+  var sig=d.emaCrossSignals.find(function(s){return s.ema===label;});
+  if(!sig)return '';
+  if(sig.dir==='up')return '<br><span class="ema-sig ema-sig-up">↑ crossed up</span>';
+  return '<br><span class="ema-sig ema-sig-dn">↓ crossed dn</span>';
+}
+// Range cell — color-coded: tight=green, wide=red
+function rngCell(v){
+  var cls=v<2.5?'up':v<5?'mu':v<10?'':'dn';
+  return '<span class="'+(cls||'mu')+'" style="font-size:11px">'+v.toFixed(1)+'%</span>';
+}
+// Quarter vol cell — shows wkAvg/qtrAvg ratio
+function qtrVolCell(d){
+  if(!d.qtrAvgVol)return '<span class="mu">-</span>';
+  var ratio=d.volRatio;
+  var qtrStr=fmtVol(d.qtrAvgVol);
+  if(ratio==null)return '<span class="vr-norm">'+qtrStr+'</span>';
+  var cls=ratio>=1.5?'vr-hot':'vr-norm';
+  var icon=ratio>=2?'🔥':ratio>=1.5?'↑':'';
+  return '<span class="'+cls+'">'+qtrStr+'</span><span style="font-size:9px;color:var(--mu);margin-left:3px">'+icon+(ratio>=0.5?ratio.toFixed(1)+'x':'')+'</span>';
+}
+// Stronger 52W high color: very close (<1%) = hot orange, very far (>30%) = deep red
+function pfhCell(d){
+  if(d.pfh==null)return '<span class="mu">-</span>';
+  var pct=d.pfh;
+  var boTag=d.bo52h?'<span class="t-brk52">52W BO&#x1F525;</span>':'';
+  var pctStr=(pct>=0?'+':'')+pct.toFixed(1)+'%';
+  var cls;
+  if(d.bo52h||pct>=-1)cls='pct-hi-close';       // ≥ -1% = very close = hot
+  else if(pct<-30)cls='pct-hi-far';              // < -30% = deep = muted red
+  else cls='pct-hi';                              // normal
+  return '<span class="'+cls+'">'+pctStr+'</span>'+boTag;
+}
+// Stronger 52W low color: very close (<5%) = danger cyan, very far (>80%) = strong green
+function pflCell(d){
+  if(d.pfl==null)return '<span class="mu">-</span>';
+  var pct=d.pfl;
+  var brkTag=d.bo52l?'<span class="t-brkdn">52W DN&#x26A0;</span>':'';
+  var pctStr=(pct>=0?'+':'')+pct.toFixed(1)+'%';
+  var cls;
+  if(d.bo52l||pct<=5)cls='pct-lo-close';        // ≤ 5% from low = near danger
+  else if(pct>80)cls='pct-lo-far';              // > 80% = strong uptrend
+  else cls='pct-lo';
+  return '<span class="'+cls+'">'+pctStr+'</span>'+brkTag;
+}
+// ADR cell — color by tightness
+function adrCell(v){
+  if(v==null)return '<span class="mu">-</span>';
+  var cls=v<1?'adr-tight':v<3?'adr-mid':'adr-wide';
+  return '<span class="'+cls+'">'+v.toFixed(1)+'%</span>';
+}
+// Days from 52W high/low — longer = trend weakening
+function daysFrCell(days, isHigh){
+  if(days==null)return '<span class="mu">-</span>';
+  var cls='pb-tag';
+  var label=days+'d';
+  // High: longer days = trend weakened; Low: longer days = recovery
+  if(isHigh){cls+=(days>60?' warn':days<10?' ok':'');}
+  else{cls+=(days<10?' warn':days>60?' ok':'');}
+  return '<span class="'+cls+'">'+label+'</span>';
+}
+// Weekly EMA condition yn
+function wYn(v){
+  if(v===null||v===undefined)return '<span class="mu">-</span>';
+  return v?'<span class="wyes">YES</span>':'<span class="wno">NO</span>';
+}
+function yn(v){
+  if(v===null||v===undefined)return '<span class="mu">-</span>';
+  return v?'<span class="yes">YES</span>':'<span class="no">NO</span>';
+}
+function streak(v){
+  if(!v)return '<span class="streak-0">—</span>';
+  return v>0?'<span class="streak-up">↑'+Math.abs(v)+'d</span>':'<span class="streak-dn">↓'+Math.abs(v)+'d</span>';
+}
+function ep(v){return v!=null?'<span class="ev">₹'+fmt(v)+'</span>':'<span class="mu">-</span>';}
+function bullCell(v){
+  if(v===null||v===undefined)return '<span class="mu">-</span>';
+  if(v===1)return '<span class="t-bull">▲ BULL</span>';
+  if(v===-1)return '<span class="t-bear">▼ BEAR</span>';
+  return '<span class="t-mix">~ MIX</span>';
+}
+function phaseCell(v){
+  if(v==null)return '<span class="mu">-</span>';
+  var lbl=['','S1 BASE','S2 UP','S3 TOP','S4 DN'],cls=['','t-s1','t-s2','t-s3','t-s4'];
+  return '<span class="'+cls[v]+'">'+lbl[v]+'</span>';
+}
+function coilCell(coil,range5d){
+  if(range5d==null)return '<span class="mu">-</span>';
+  if(coil)return '<span class="t-coil">🌀 COIL</span><span style="font-size:9px;color:var(--mu);margin-left:3px">'+range5d.toFixed(1)+'%</span>';
+  return '<span class="mu" style="font-size:11px">'+range5d.toFixed(1)+'%</span>';
+}
+function cross200Cell(v,price,e200){
+  if(!v)return '<span class="mu">-</span>';
+  if(v==='up')return '<span class="t-cup">↑ CROSS UP</span>';
+  return '<span class="t-cdn">↓ CROSS DN</span>';
+}
+function fmtVol(v){
+  if(!v)return '-';
+  if(v>=1e7)return (v/1e7).toFixed(1)+'Cr';
+  if(v>=1e5)return (v/1e5).toFixed(1)+'L';
+  if(v>=1e3)return (v/1e3).toFixed(0)+'K';
+  return String(Math.round(v));
+}
+function volCell(d){
+  if(!d.todVol)return '<span class="mu">-</span>';
+  var hiW=d.wkAvg&&d.todVol>d.wkAvg,hiM=d.moAvg&&d.todVol>d.moAvg;
+  var tag='';
+  if(d.volSpike)tag='<span class="t-spike">2x⚡</span>';
+  else if(hiW&&hiM)tag='<span class="vol-tag">W+M↑</span>';
+  else if(hiW)tag='<span class="vol-tag">WK↑</span>';
+  else if(hiM)tag='<span class="vol-tag">MO↑</span>';
+  return '<span class="'+(d.volSpike?'vol-hi':hiW||hiM?'vol-hi':'vol-lo')+'">'+fmtVol(d.todVol)+tag+'</span>';
+}
+
+// ── RENDER TABLE ──
+function renderTbl(){
+  var data=filteredData();
+  var isEmpty=!db.length,isWLEmpty=showWL&&!data.length&&db.length>0;
+  document.getElementById('tbl').style.display=(isEmpty||isWLEmpty)?'none':'';
+  document.getElementById('empty').style.display=isEmpty?'block':'none';
+  document.getElementById('wlEmpty').style.display=isWLEmpty?'block':'none';
+  if(isEmpty||isWLEmpty)return;
+  var h='';
+  data.forEach(function(d){
+    var sym=d.sym,s=sym.replace(/\.(NS|BO)$/,''),xt=sym.endsWith('.BO')?'.BO':'.NS';
+    var starred=watchlist.has(sym);
+    var starTd='<td style="width:30px"><span class="star'+(starred?' on':'')+'" onclick="toggleStar(\''+sym+'\')">'+(starred?'★':'☆')+'</span></td>';
+    var symTd='<td style="text-align:left"><span class="sym">'+s+'</span><span class="xt">'+xt+'</span></td>';
+    var indTd='<td style="text-align:left"><span class="ni">'+esc(d.industry||'—')+'</span></td>';
+    if(d.loading){
+      h+='<tr>'+starTd+symTd+'<td style="text-align:left"><span class="nc">'+esc(d.name||'')+'</span></td>'+indTd+'<td colspan="31" class="ld">fetching...</td></tr>';
+    } else if(d.err){
+      h+='<tr>'+starTd+symTd+'<td style="text-align:left"><span class="nc">'+esc(d.name||'')+'</span></td>'+indTd+'<td colspan="31" class="er">'+esc(d.err)+'</td></tr>';
+    } else if(!d.price){
+      h+='<tr>'+starTd+symTd+'<td style="text-align:left"><span class="nc">'+esc(d.name||'')+'</span></td>'+indTd+'<td colspan="31" class="ld">—</td></tr>';
+    } else {
+      var pc=d.pch==null?'<span class="mu">-</span>':'<span class="'+(d.pch>=0?'up':'dn')+'">'+(d.pch>=0?'+':'')+d.pch.toFixed(2)+'%</span>';
+      var pfhHtml=pfhCell(d);
+      var pflHtml=pflCell(d);
+      var athCell=d.pfath!=null
+        ?'<span class="pct-ath">'+(d.pfath>=0?'+':'')+d.pfath.toFixed(1)+'%</span>'
+        :'<span class="mu">-</span>';
+      // 200 EMA cross shown in EMA200 cell
+      var e200Cell=ep(d.e200)+(d.cross200?'<br>'+cross200Cell(d.cross200):'');
+      h+='<tr>'
+        +starTd
+        +symTd
+        +'<td style="text-align:left"><span class="nc">'+esc(d.name)+'</span></td>'
+        +indTd
+        +'<td>'+bullCell(d.bull)+'</td>'
+        +'<td>'+phaseCell(d.phase)+'</td>'
+        +'<td>'+coilCell(d.coil,d.range5d)+'</td>'
+        +'<td>₹'+fmt(d.price)+'</td>'
+        +'<td>'+pc+'</td>'
+        +'<td class="mu">'+(d.mcap?fCr(d.mcap):'-')+'</td>'
+        +'<td>'+pfhHtml+'</td>'
+        +'<td>'+pflHtml+'</td>'
+        +'<td>'+athCell+'</td>'
+        +'<td>'+(d.range5d!=null?rngCell(d.range5d):'<span class="mu">-</span>')+'</td>'
+        +'<td>'+(d.range4w!=null?rngCell(d.range4w):'<span class="mu">-</span>')+'</td>'
+        +'<td>'+adrCell(d.adr)+'</td>'
+        +'<td>'+(d.awr!=null?'<span class="adr-mid">'+d.awr.toFixed(1)+'%</span>':'<span class="mu">-</span>')+'</td>'
+        +'<td>'+daysFrCell(d.daysFrH,true)+'</td>'
+        +'<td>'+daysFrCell(d.daysFrL,false)+'</td>'
+        +'<td class="sec-border">'+ep(d.e20)+emaSigFor(d,"EMA20")+'</td>'
+        +'<td>'+ep(d.e50)+emaSigFor(d,"EMA50")+'</td>'
+        +'<td>'+ep(d.e100)+emaSigFor(d,"EMA100")+'</td>'
+        +'<td>'+e200Cell+emaSigFor(d,"EMA200")+'</td>'
+        +'<td class="sec-border">'+yn(d.c_100gt200)+'</td>'
+        +'<td>'+yn(d.c_50gt100)+'</td>'
+        +'<td>'+yn(d.c_20gt50)+'</td>'
+        +'<td>'+yn(d.c_pgt20)+'</td>'
+        +'<td class="sec-border">'+wYn(d.wc_100gt200)+'</td>'
+        +'<td>'+wYn(d.wc_50gt100)+'</td>'
+        +'<td>'+wYn(d.wc_20gt50)+'</td>'
+        +'<td>'+wYn(d.wc_pgt20)+'</td>'
+        +'<td class="sec-border">'+streak(d.s20)+'</td>'
+        +'<td>'+streak(d.s50)+'</td>'
+        +'<td>'+streak(d.s100)+'</td>'
+        +'<td>'+streak(d.s200)+'</td>'
+        +'<td class="sec-border">'+volCell(d)+'</td>'
+        +'<td class="mu">'+fmtVol(d.wkAvg)+'</td>'
+        +'<td class="mu">'+fmtVol(d.moAvg)+'</td>'
+        +'<td>'+qtrVolCell(d)+'</td>'
+        +'</tr>';
+    }
+  });
+  document.getElementById('tb').innerHTML=h;
+  populateIndustryDropdown();
+}
+function populateIndustryDropdown(){
+  var sel=document.getElementById('f_industry');
+  if(!sel)return;
+  var cur=sel.value;
+  // collect unique non-empty industries from loaded rows
+  var set={};
+  db.forEach(function(t){
+    var meta=getInd(t.sym);
+    var ind=meta.industry||(rows[t.sym]&&rows[t.sym].industry)||'';
+    if(ind)set[ind]=1;
+  });
+  var inds=Object.keys(set).sort();
+  var h='<option value="">All Industries</option>';
+  inds.forEach(function(ind){
+    h+='<option value="'+esc(ind)+'"'+(ind===cur?' selected':'')+'>'+esc(ind)+'</option>';
+  });
+  sel.innerHTML=h;
+}
+
+function clearT(){rows={};renderTbl();document.getElementById('sbar').className='';toast('Table cleared','');}
+
+// ── STATS ──
+function updateStats(){
+  var all=Object.values(rows);
+  document.getElementById('st').textContent=db.length;
+  document.getElementById('sok').textContent=all.filter(function(d){return d&&d.price;}).length;
+  document.getElementById('ser').textContent=all.filter(function(d){return d&&d.err;}).length;
+  renderDb(); // keep invalid badge in sync
+}
+function setP(d,t){document.getElementById('prog').textContent=d+' / '+t;}
+
+// ── EXPORT ──
+var EXP_K=['sym','name','industry','bull','phase','coil','price','pch','mcap','pfh','pfl','pfath','range5d','range4w','adr','awr','daysFrH','daysFrL','hi52','lo52','ath','e20','e50','e100','e200','c_100gt200','c_50gt100','c_20gt50','c_pgt20','wc_100gt200','wc_50gt100','wc_20gt50','wc_pgt20','s20','s50','s100','s200','todVol','wkAvg','moAvg','qtrAvgVol','volRatio','bo52h','bo52l','volSpike','cross200'];
+var EXP_H=['Symbol','Name','Industry','Trend','Phase','Coil','Price','%Day','MCap_Cr','%52W_H','%52W_L','%5Y_H','5D_Rng%','4W_Rng%','ADR%','AWR%','DaysFr52H','DaysFr52L','52W_High','52W_Low','5Y_High','EMA20','EMA50','EMA100','EMA200','100>200','50>100','20>50','P>20','W:100>200','W:50>100','W:20>50','W:P>20','Days_vs20','Days_vs50','Days_vs100','Days_vs200','TodayVol','WkAvgVol','MoAvgVol','QtrAvgVol','WkVsQtrRatio','52W_BO','52W_BrkDn','VolSpike','Cross200EMA'];
+function bullStr(v){return v===1?'BULL':v===-1?'BEAR':'MIX';}
+function phaseStr(v){var l=['','S1_BASE','S2_UP','S3_TOP','S4_DOWN'];return v!=null?l[v]:'';}
+function rowToArr(d){
+  return EXP_K.map(function(k){
+    var v=k==='industry'?getInd(d.sym).industry||'':d[k];
+    if(v===null||v===undefined)return '';
+    if(k==='bull')return bullStr(v);
+    if(k==='phase')return phaseStr(v);
+    if(typeof v==='boolean')return v?'YES':'NO';
+    if(typeof v==='number')return parseFloat(v.toFixed(2));
+    return v;
   });
 }
+function exportCSV(){
+  var data=filteredData().filter(function(d){return d.price;});
+  if(!data.length){toast('No data to export','er');return;}
+  var r=[EXP_H].concat(data.map(rowToArr));
+  var csv=r.map(function(row){return row.map(function(v){var s=String(v);return s.indexOf(',')>=0||s.indexOf('"')>=0?'"'+s.replace(/"/g,'""')+'"':s;}).join(',');}).join('\n');
+  dl('StockPulse_'+today()+'.csv','data:text/csv;charset=utf-8,'+encodeURIComponent(csv));
+  toast('CSV exported','ok');
+}
+function exportExcel(){
+  var data=filteredData().filter(function(d){return d.price;});
+  if(!data.length){toast('No data to export','er');return;}
+  var xml='<?xml version="1.0"?><?mso-application progid="Excel.Sheet"?><Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"><Worksheet ss:Name="StockPulse"><Table>';
+  xml+='<Row>'+EXP_H.map(function(h){return '<Cell><Data ss:Type="String">'+h+'</Data></Cell>';}).join('')+'</Row>';
+  data.forEach(function(d){xml+='<Row>'+rowToArr(d).map(function(v){var t=typeof v==='number'?'Number':'String';return '<Cell><Data ss:Type="'+t+'">'+String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</Data></Cell>';}).join('')+'</Row>';});
+  xml+='</Table></Worksheet></Workbook>';
+  dl('StockPulse_'+today()+'.xls','data:application/vnd.ms-excel;charset=utf-8,'+encodeURIComponent(xml));
+  toast('Excel exported','ok');
+}
+function dl(fname,href){var a=document.createElement('a');a.href=href;a.download=fname;document.body.appendChild(a);a.click();document.body.removeChild(a);}
+function today(){return new Date().toISOString().slice(0,10);}
 
-// ─────────────────────────────────────────
-// RENDER TABLE
-// ─────────────────────────────────────────
-function renderTable() {
-  var syms = tickerDb.map(function(t) { return t.sym; });
-  if (!syms.length) {
-    document.getElementById('mainTable').style.display = 'none';
-    document.getElementById('emptyMsg').style.display = 'block';
-    return;
-  }
-  document.getElementById('mainTable').style.display = '';
-  document.getElementById('emptyMsg').style.display = 'none';
+// ── HELPERS ──
+function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');}
+function fmt(v){return v?v.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2}):'-';}
+function fCr(v){return v>=1e5?(v/1e5).toFixed(1)+' LCr':v>=1e3?(v/1e3).toFixed(1)+' KCr':v.toFixed(0)+' Cr';}
+var _tt;
+function toast(msg,t){var el=document.getElementById('toast');el.textContent=msg;el.className='show'+(t?' '+t:'');clearTimeout(_tt);_tt=setTimeout(function(){el.className='';},3500);}
 
-  var h = '';
-  for (var i = 0; i < syms.length; i++) {
-    var sym = syms[i];
-    var d = tableData[sym];
-    var dispSym = sym.replace('.NS','').replace('.BO','');
-    var exchTag = sym.indexOf('.BO') >= 0 ? '.BO' : '.NS';
+// ── THEME TOGGLE ──
+function toggleTheme(){
+  var isLight=document.body.classList.toggle('light');
+  document.getElementById('themeBtn').textContent=isLight?'🌙 Dark':'☀ Light';
+  try{localStorage.setItem('sp5theme',isLight?'light':'dark');}catch(e){}
+}
+function loadTheme(){
+  try{
+    var t=localStorage.getItem('sp5theme');
+    if(t==='light'){document.body.classList.add('light');document.getElementById('themeBtn').textContent='🌙 Dark';}
+  }catch(e){}
+}
 
-    if (!d) {
-      // Not yet fetched
-      h += '<tr><td><span class="sym">' + dispSym + '</span><span class="exch-tag">' + exchTag + '</span></td>'
-         + '<td colspan="6" class="loading">waiting...</td></tr>';
-    } else if (d.loading) {
-      h += '<tr><td><span class="sym">' + dispSym + '</span><span class="exch-tag">' + exchTag + '</span></td>'
-         + '<td colspan="6" class="loading">fetching...</td></tr>';
-    } else if (d.err) {
-      h += '<tr><td><span class="sym">' + dispSym + '</span><span class="exch-tag">' + exchTag + '</span></td>'
-         + '<td colspan="6" class="err-msg">' + esc(d.err) + '</td></tr>';
-    } else {
-      var pchHtml = d.pch == null ? '<span class="mu">-</span>'
-        : '<span class="' + (d.pch >= 0 ? 'up' : 'dn') + '">' + (d.pch >= 0 ? '+' : '') + d.pch.toFixed(2) + '%</span>';
-      h += '<tr>'
-        + '<td><span class="sym">' + dispSym + '</span><span class="exch-tag">' + exchTag + '</span></td>'
-        + '<td class="name-cell">' + esc(d.name || '-') + '</td>'
-        + '<td class="price">₹ ' + (d.price ? d.price.toLocaleString('en-IN', {minimumFractionDigits:2,maximumFractionDigits:2}) : '-') + '</td>'
-        + '<td>' + pchHtml + '</td>'
-        + '<td class="mu">' + (d.hi52 ? '₹ ' + d.hi52.toLocaleString('en-IN', {maximumFractionDigits:2}) : '-') + '</td>'
-        + '<td class="mu">' + (d.lo52 ? '₹ ' + d.lo52.toLocaleString('en-IN', {maximumFractionDigits:2}) : '-') + '</td>'
-        + '<td class="mu">' + (d.mcap ? fCr(d.mcap) : '-') + '</td>'
-        + '</tr>';
+// ── COLUMN VISIBILITY ──
+var CV_KEY='sp5colvis';
+// Map: group id → array of column indices that it controls
+// Cols: 0=star 1=sym 2=name 3=ind 4=trend 5=phase 6=coil 7=price 8=pch 9=mcap 10=pfh 11=pfl 12=pfath 13=rng5 14=rng4 15=adr 16=awr 17=dfH 18=dfL 19=e20 20=e50 21=e100 22=e200 23=c1 24=c2 25=c3 26=c4 27=wc1 28=wc2 29=wc3 30=wc4 31=s20 32=s50 33=s100 34=s200 35=tvol 36=wvol 37=mvol 38=qvol
+var COL_VIS_MAP={
+  cv_industry:[3],
+  cv_trend:[4],cv_phase:[5],cv_coil:[6],
+  cv_pch:[8],cv_mcap:[9],
+  cv_52w:[10,11],cv_5yh:[12],
+  cv_rng:[13,14],cv_adr:[15,16],cv_pb52:[17,18],
+  cv_ema_vals:[19,20,21,22],
+  cv_ema_cond:[23,24,25,26],
+  cv_wema:[27,28,29,30],
+  cv_streaks:[31,32,33,34],
+  cv_vol:[35,36,37,38]
+};
+function toggleColVis(){
+  document.getElementById('colVisPanel').classList.toggle('on');
+}
+function applyColVis(){
+  var state={};
+  Object.keys(COL_VIS_MAP).forEach(function(id){
+    var el=document.getElementById(id);
+    var visible=el?el.checked:true;
+    state[id]=visible;
+    var cols=COL_VIS_MAP[id];
+    cols.forEach(function(ci){
+      // Apply to all rows via CSS class on col
+      setColVisible(ci,visible);
+    });
+  });
+  // hg1 group spans — handle by toggling EMA COND / WEEKLY COND header visibility
+  var wemaEl=document.getElementById('hg1_wema');
+  if(wemaEl)wemaEl.style.display=state.cv_wema===false?'none':'';
+  var ecEl=document.getElementById('hg1_emacond');
+  if(ecEl)ecEl.style.display=state.cv_ema_cond===false?'none':'';
+  try{localStorage.setItem(CV_KEY,JSON.stringify(state));}catch(e){}
+}
+function setColVisible(colIdx,visible){
+  // colIdx is 1-based for nth-child (we add 1 because filter row/header also uses nth-child)
+  var ci=colIdx+1; // CSS nth-child is 1-based
+  var styleId='cv-style-'+colIdx;
+  var el=document.getElementById(styleId);
+  if(!visible){
+    if(!el){
+      el=document.createElement('style');el.id=styleId;document.head.appendChild(el);
     }
+    el.textContent='#tbl td:nth-child('+ci+'),#tbl th:nth-child('+ci+'){display:none!important;}';
+  } else {
+    if(el){el.textContent='';}
   }
-  document.getElementById('tbody').innerHTML = h;
+}
+function loadColVis(){
+  try{
+    var state=JSON.parse(localStorage.getItem(CV_KEY));
+    if(!state)return;
+    Object.keys(COL_VIS_MAP).forEach(function(id){
+      var el=document.getElementById(id);
+      if(el&&state[id]===false)el.checked=false;
+    });
+    applyColVis();
+  }catch(e){}
+}
+function resetColVis(){
+  Object.keys(COL_VIS_MAP).forEach(function(id){
+    var el=document.getElementById(id);
+    if(el)el.checked=true;
+  });
+  applyColVis();
+  toast('Columns reset to default','ok');
 }
 
-function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-function fCr(v) {
-  if (!v) return '-';
-  if (v >= 1e5) return (v/1e5).toFixed(1) + ' LCr';
-  if (v >= 1e3) return (v/1e3).toFixed(1) + ' KCr';
-  return v.toFixed(0) + ' Cr';
+// ── EXPORT VISIBLE COLUMNS ONLY ──
+function exportVisibleCSV(){
+  var data=filteredData().filter(function(d){return d.price;});
+  if(!data.length){toast('No data to export','er');return;}
+  // Determine visible column indices from COL_VIS_MAP checkboxes
+  var hiddenGroups=[];
+  Object.keys(COL_VIS_MAP).forEach(function(id){
+    var el=document.getElementById(id);
+    if(el&&!el.checked)hiddenGroups=hiddenGroups.concat(COL_VIS_MAP[id]);
+  });
+  // Map COLS indices to EXP_K — filter out hidden ones
+  // Export all key/header pairs that aren't in hidden column groups
+  // We use a simpler approach: just export based on which EXP_K fields correspond to hidden cols
+  var hiddenFields=[];
+  var colGroupFieldMap={
+    cv_industry:['industry'],cv_trend:['bull'],cv_phase:['phase'],cv_coil:['coil','range5d'],
+    cv_pch:['pch'],cv_mcap:['mcap'],cv_52w:['pfh','pfl','hi52','lo52','bo52h','bo52l'],
+    cv_5yh:['pfath','ath'],cv_rng:['range5d','range4w'],cv_adr:['adr','awr'],
+    cv_pb52:['daysFrH','daysFrL'],cv_ema_vals:['e20','e50','e100','e200'],
+    cv_ema_cond:['c_100gt200','c_50gt100','c_20gt50','c_pgt20'],
+    cv_wema:['wc_100gt200','wc_50gt100','wc_20gt50','wc_pgt20'],
+    cv_streaks:['s20','s50','s100','s200'],
+    cv_vol:['todVol','wkAvg','moAvg','qtrAvgVol','volRatio','volSpike']
+  };
+  Object.keys(colGroupFieldMap).forEach(function(id){
+    var el=document.getElementById(id);
+    if(el&&!el.checked)hiddenFields=hiddenFields.concat(colGroupFieldMap[id]);
+  });
+  var visibleK=[],visibleH=[];
+  EXP_K.forEach(function(k,i){
+    if(hiddenFields.indexOf(k)<0){visibleK.push(k);visibleH.push(EXP_H[i]);}
+  });
+  var rows=[visibleH].concat(data.map(function(d){
+    return visibleK.map(function(k){
+      var v=k==='industry'?getInd(d.sym).industry||'':d[k];
+      if(v===null||v===undefined)return '';
+      if(k==='bull')return bullStr(v);
+      if(k==='phase')return phaseStr(v);
+      if(typeof v==='boolean')return v?'YES':'NO';
+      if(typeof v==='number')return parseFloat(v.toFixed(2));
+      return v;
+    });
+  }));
+  var csv=rows.map(function(row){return row.map(function(v){var s=String(v);return s.indexOf(',')>=0||s.indexOf('"')>=0?'"'+s.replace(/"/g,'""')+'"':s;}).join(',');}).join('\n');
+  dl('StockPulse_Visible_'+today()+'.csv','data:text/csv;charset=utf-8,'+encodeURIComponent(csv));
+  toast('Visible columns exported','ok');
 }
 
-// ─────────────────────────────────────────
-// CLEAR TABLE (keeps DB)
-// ─────────────────────────────────────────
-function clearAll() {
-  tableData = {};
-  renderTable();
-  document.getElementById('statusBar').className = '';
-  showToast('Table cleared (DB intact)', '');
+// ── STICKY SCROLL SYNC ──
+function initScrollSync(){
+  var hs=document.getElementById('hscroll');
+  var tw=document.getElementById('twrap');
+  var hi=document.getElementById('hscrollInner');
+  function syncW(){hi.style.width=tw.scrollWidth+'px';}
+  syncW();
+  // keep width in sync when table changes
+  var mo=new MutationObserver(syncW);
+  mo.observe(tw,{childList:true,subtree:true});
+  window.addEventListener('resize',syncW);
+  var syncing=false;
+  hs.addEventListener('scroll',function(){if(syncing)return;syncing=true;tw.scrollLeft=hs.scrollLeft;syncing=false;});
+  tw.addEventListener('scroll',function(){if(syncing)return;syncing=true;hs.scrollLeft=tw.scrollLeft;syncing=false;});
 }
 
-// ─────────────────────────────────────────
-// STATUS BAR
-// ─────────────────────────────────────────
-function showStatusBar() {
-  document.getElementById('statusBar').className = 'on';
+// ── INIT ──
+load();wlLoad();indLoad();loadTheme();loadColVis();loadSortPref();
+db.forEach(function(t){var c=cacheGet(t.sym);if(c)rows[t.sym]=c;});
+renderDb();renderTbl();updateStats();updateCacheNote();updateWLCount();
+if(Object.keys(rows).length){
+  document.getElementById('sbar').className='on';
+  document.getElementById('tbl').style.display='';
+  document.getElementById('empty').style.display='none';
+  document.getElementById('lastUpd').textContent='From cache';
 }
-function setProgress(done, total) {
-  document.getElementById('progText').textContent = done + ' / ' + total;
-}
-function updateStats() {
-  var all = Object.values(tableData);
-  var ok  = all.filter(function(d) { return d && !d.err && !d.loading && d.price; }).length;
-  var err = all.filter(function(d) { return d && d.err; }).length;
-  document.getElementById('sTot').textContent = tickerDb.length;
-  document.getElementById('sOk').textContent  = ok;
-  document.getElementById('sErr').textContent = err;
-}
-
-// ─────────────────────────────────────────
-// TOAST
-// ─────────────────────────────────────────
-var _toastTimer;
-function showToast(msg, type) {
-  var el = document.getElementById('toast');
-  el.textContent = msg;
-  el.className = 'show' + (type ? ' ' + type : '');
-  clearTimeout(_toastTimer);
-  _toastTimer = setTimeout(function() { el.className = ''; }, 3000);
-}
-
-// ─────────────────────────────────────────
-// INIT
-// ─────────────────────────────────────────
-dbLoad();
-renderDb();
-renderTable();
+startARTimer(60);
+initScrollSync();
 </script>
 </body>
 </html>
