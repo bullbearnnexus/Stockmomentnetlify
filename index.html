@@ -1101,17 +1101,34 @@ function proxyUrl(sym,range,interval){
   interval=interval||'1d';
   return '/.netlify/functions/quote?sym='+encodeURIComponent(sym)+'&range='+(range||'3y')+'&interval='+interval;
 }
+function yahooUrl(sym,range,interval){
+  return 'https://query1.finance.yahoo.com/v8/finance/chart/'
+    +encodeURIComponent(sym)+'?interval='+interval+'&range='+range+'&includePrePost=false';
+}
 function proxyFetch(sym,range,interval){
-  var url=proxyUrl(sym,range,interval);
-  return fetch(url,{signal:AbortSignal.timeout(25000)})
+  interval=interval||'1d'; range=range||'3y';
+  var netlifyUrl=proxyUrl(sym,range,interval);
+  // Try Netlify function first
+  return fetch(netlifyUrl,{signal:AbortSignal.timeout(30000)})
     .then(function(r){
-      if(r.status===404||r.status===502){
-        // Function not deployed — fall back to corsproxy.io
-        var yahoo='https://query1.finance.yahoo.com/v8/finance/chart/'+encodeURIComponent(sym)
-          +'?interval='+(interval||'1d')+'&range='+(range||'3y')+'&includePrePost=false';
-        return fetch('https://corsproxy.io/?url='+encodeURIComponent(yahoo),{signal:AbortSignal.timeout(25000)});
-      }
-      return r;
+      if(r.ok)return r;
+      // Netlify fn failed — try allorigins proxy
+      var yahoo=yahooUrl(sym,range,interval);
+      var ao='https://api.allorigins.win/raw?url='+encodeURIComponent(yahoo);
+      return fetch(ao,{signal:AbortSignal.timeout(30000)})
+        .then(function(r2){
+          if(r2.ok)return r2;
+          // Last resort — corsproxy
+          return fetch('https://corsproxy.io/?'+encodeURIComponent(yahoo),{signal:AbortSignal.timeout(30000)});
+        });
+    })
+    .catch(function(){
+      // Netlify network error — try allorigins then corsproxy
+      var yahoo=yahooUrl(sym,range,interval);
+      return fetch('https://api.allorigins.win/raw?url='+encodeURIComponent(yahoo),{signal:AbortSignal.timeout(30000)})
+        .catch(function(){
+          return fetch('https://corsproxy.io/?'+encodeURIComponent(yahoo),{signal:AbortSignal.timeout(30000)});
+        });
     });
 }
 
@@ -1939,11 +1956,11 @@ function renderTbl(){
     var symTd='<td style="text-align:left"><span class="sym">'+s+'</span><span class="xt">'+xt+'</span></td>';
     var indTd='<td style="text-align:left"><span class="ni">'+esc(d.industry||'—')+'</span></td>';
     if(d.loading){
-      h+='<tr>'+starTd+symTd+'<td style="text-align:left"><span class="nc">'+esc(d.name||'')+'</span></td>'+indTd+'<td colspan="32" class="ld">fetching...</td></tr>';
+      h+='<tr>'+starTd+'<td></td>'+symTd+'<td style="text-align:left"><span class="nc">'+esc(d.name||'')+'</span></td>'+indTd+'<td colspan="41" class="ld">⟳ fetching...</td></tr>';
     } else if(d.err){
-      h+='<tr>'+starTd+symTd+'<td style="text-align:left"><span class="nc">'+esc(d.name||'')+'</span></td>'+indTd+'<td colspan="32" class="er">'+esc(d.err)+'</td></tr>';
+      h+='<tr>'+starTd+'<td></td>'+symTd+'<td style="text-align:left"><span class="nc">'+esc(d.name||'')+'</span></td>'+indTd+'<td colspan="41" class="er">✗ '+esc(d.err)+'</td></tr>';
     } else if(!d.price){
-      h+='<tr>'+starTd+symTd+'<td style="text-align:left"><span class="nc">'+esc(d.name||'')+'</span></td>'+indTd+'<td colspan="32" class="ld">—</td></tr>';
+      h+='<tr>'+starTd+'<td></td>'+symTd+'<td style="text-align:left"><span class="nc">'+esc(d.name||'')+'</span></td>'+indTd+'<td colspan="41" class="ld">—</td></tr>';
     } else {
       var pc=d.pch==null?'<span class="mu">-</span>':'<span class="'+(d.pch>=0?'up':'dn')+'">'+(d.pch>=0?'+':'')+d.pch.toFixed(2)+'%</span>';
       var pfhHtml=pfhCell(d);
