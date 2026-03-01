@@ -214,6 +214,25 @@ thead tr.hg3 th{background:#0c0c13;position:sticky;top:54px;z-index:10;padding:3
 .pb-tag{font-size:8px;color:var(--mu);display:block;margin-top:1px;}
 .pb-tag.warn{color:var(--acc);}
 .pb-tag.ok{color:var(--green);}
+/* Composite Score badge */
+.score-hi{font-size:11px;font-weight:700;color:#000;background:linear-gradient(135deg,#f0a500,#ffcc44);border-radius:4px;padding:2px 6px;min-width:28px;display:inline-block;text-align:center;}
+.score-mid{font-size:11px;font-weight:700;color:var(--green);background:rgba(0,214,143,.15);border-radius:4px;padding:2px 6px;}
+.score-lo{font-size:11px;color:var(--mu);background:rgba(255,255,255,.05);border-radius:4px;padding:2px 6px;}
+/* NR7 tag */
+.t-nr7{font-size:9px;font-weight:700;padding:1px 5px;border-radius:2px;background:rgba(180,100,255,.2);color:#c88fff;border:1px solid rgba(180,100,255,.4);}
+/* Consecutive days */
+.consec-up{color:var(--green);font-size:11px;font-weight:600;}
+.consec-dn{color:var(--red);font-size:11px;font-weight:600;}
+/* Volume dry-up */
+.t-vdu{font-size:9px;font-weight:700;padding:1px 4px;border-radius:2px;background:rgba(68,100,255,.18);color:#88aaff;}
+/* RS vs Nifty */
+.rs-hi{color:var(--green);font-size:11px;font-weight:600;}
+.rs-lo{color:var(--red);font-size:11px;}
+.rs-mid{color:var(--mu);font-size:11px;}
+/* Return cells */
+.ret-hi{color:var(--green);font-size:11px;font-weight:600;}
+.ret-lo{color:var(--red);font-size:11px;}
+.ret-mid{color:var(--mu);font-size:11px;}
 /* ADR / AWR cells */
 .adr-tight{color:var(--green);font-size:11px;font-weight:600;}
 .adr-mid{color:var(--mu);font-size:11px;}
@@ -405,6 +424,11 @@ thead tr.hg3 th{background:#0c0c13;position:sticky;top:54px;z-index:10;padding:3
     <div class="cvg-label">Volume</div>
     <label class="cvc"><input type="checkbox" id="cv_vol" onchange="applyColVis()" checked> Today Vol / Wk / Mo / Qtr</label>
   </div>
+  <div class="cvg">
+    <div class="cvg-label">Momentum</div>
+    <label class="cvc"><input type="checkbox" id="cv_score" onchange="applyColVis()" checked> Composite Score</label>
+    <label class="cvc"><input type="checkbox" id="cv_momentum" onchange="applyColVis()" checked> 1M/3M/6M Returns, RS/Nifty, NR7</label>
+  </div>
   <div style="padding:12px 16px;">
     <button class="btn" onclick="resetColVis()" style="width:100%;text-align:center">↺ Reset to Default</button>
   </div>
@@ -430,6 +454,7 @@ thead tr.hg3 th{background:#0c0c13;position:sticky;top:54px;z-index:10;padding:3
     <thead>
       <tr class="hg1">
         <th colspan="1"></th>
+        <th colspan="1">SCORE</th>
         <th colspan="3" style="text-align:left">STOCK</th>
         <th colspan="3">SIGNAL</th>
         <th colspan="12">PRICE &amp; RANGE</th>
@@ -438,9 +463,11 @@ thead tr.hg3 th{background:#0c0c13;position:sticky;top:54px;z-index:10;padding:3
         <th colspan="4" class="sec-border" id="hg1_wema">EMA CONDITIONS (WEEKLY)</th>
         <th colspan="4" class="sec-border">DAYS vs EMA</th>
         <th colspan="4" class="sec-border">VOLUME</th>
+        <th colspan="6" class="sec-border">MOMENTUM</th>
       </tr>
       <tr class="hg2" id="colHeaders">
         <th style="width:30px;cursor:default"></th>
+        <th onclick="sortBy('score')" style="min-width:55px" title="Composite Momentum Score (0-100)">SCORE</th>
         <th style="text-align:left;min-width:100px" onclick="sortBy('sym')">TICKER</th>
         <th style="text-align:left;min-width:120px" onclick="sortBy('name')">NAME</th>
         <th style="text-align:left;min-width:100px" onclick="sortBy('industry')">INDUSTRY</th>
@@ -479,11 +506,24 @@ thead tr.hg3 th{background:#0c0c13;position:sticky;top:54px;z-index:10;padding:3
         <th onclick="sortBy('wkAvg')" id="h_wvol">WK AVG</th>
         <th onclick="sortBy('moAvg')" id="h_mvol">MO AVG</th>
         <th onclick="sortBy('qtrAvgVol')" id="h_qvol">QTR AVG</th>
+        <th class="sec-border" onclick="sortBy('ret1m')" id="h_r1m">1M RET%</th>
+        <th onclick="sortBy('ret3m')" id="h_r3m">3M RET%</th>
+        <th onclick="sortBy('ret6m')" id="h_r6m">6M RET%</th>
+        <th onclick="sortBy('rsNifty')" id="h_rs">RS/NIFTY</th>
+        <th onclick="sortBy('consec')" id="h_consec">CONSEC</th>
+        <th onclick="sortBy('nr7')" id="h_nr7">NR7</th>
       </tr>
       <!-- FILTER ROW -->
       <tr class="hg3" id="filterRow">
         <th></th>
-        <th><input class="fi" id="f_sym" placeholder="ticker..." oninput="applyFilters()"></th>
+        <th><select class="fi-sel" id="f_score" onchange="applyFilters()">
+          <option value="">Score: All</option>
+          <option value="80">Elite ≥80</option>
+          <option value="60">Strong ≥60</option>
+          <option value="40">Active ≥40</option>
+          <option value="20">Weak &lt;20</option>
+        </select></th>
+        <th><input class="fi" id="f_sym"  placeholder="ticker..." oninput="applyFilters()"></th>
         <th><input class="fi" id="f_name" placeholder="name..." oninput="applyFilters()"></th>
         <th><select class="fi-sel" id="f_industry" onchange="applyFilters()"><option value="">All Industries</option></select></th>
         <th><select class="fi-sel" id="f_bull" onchange="applyFilters()">
@@ -633,6 +673,29 @@ thead tr.hg3 th{background:#0c0c13;position:sticky;top:54px;z-index:10;padding:3
           <option value="1.5">Active &gt;1.5x</option>
           <option value="2">Surge &gt;2x</option>
         </select></th>
+        <th class="sec-border"><select class="fi-sel" id="f_ret3m" onchange="applyFilters()">
+          <option value="">3M: All</option>
+          <option value="20">Strong &gt;+20%</option>
+          <option value="10">Good &gt;+10%</option>
+          <option value="0">Positive</option>
+          <option value="neg">Negative</option>
+        </select></th>
+        <th><span style="display:block;height:22px;background:rgba(255,255,255,.02);border-radius:3px;border:1px solid rgba(255,255,255,.04)"></span></th>
+        <th><span style="display:block;height:22px;background:rgba(255,255,255,.02);border-radius:3px;border:1px solid rgba(255,255,255,.04)"></span></th>
+        <th><select class="fi-sel" id="f_rs" onchange="applyFilters()">
+          <option value="">RS: All</option>
+          <option value="1.2">Leader &gt;1.2x</option>
+          <option value="1">Outperform &gt;1x</option>
+          <option value="under">Underperform &lt;1x</option>
+        </select></th>
+        <th><select class="fi-sel" id="f_nr7" onchange="applyFilters()">
+          <option value="">NR7: All</option>
+          <option value="1">NR7 Only</option>
+        </select></th>
+        <th><select class="fi-sel" id="f_vdu" onchange="applyFilters()">
+          <option value="">Vol DU: All</option>
+          <option value="1">Dry-Up Only</option>
+        </select></th>
       </tr>
     </thead>
     <tbody id="tb"></tbody>
@@ -641,7 +704,7 @@ thead tr.hg3 th{background:#0c0c13;position:sticky;top:54px;z-index:10;padding:3
 <div id="toast"></div>
 
 <script>
-var DB_KEY='sp5db2',CACHE_KEY='sp5cache10',WL_KEY='sp5wl',SNAP_KEY='sp5snap',IND_KEY='sp5ind',CACHE_TTL=4*60*60*1000;
+var DB_KEY='sp5db2',CACHE_KEY='sp5cache11',WL_KEY='sp5wl',SNAP_KEY='sp5snap',IND_KEY='sp5ind',CACHE_TTL=4*60*60*1000;
 var exch='NS';
 var db=[],rows={},watchlist=new Set(),industries={};
 var sortCol=null,sortDir=1,showWL=false,frozen=false;
@@ -938,9 +1001,16 @@ function getPhase(p,e20,e50,e100,e200){
 }
 
 // ── ATH FETCH (monthly 5yr — lightweight) ──
+// ── PROXY URL — uses Netlify function when deployed, direct when local ──
+function proxyUrl(sym,range,interval){
+  interval=interval||'1d';
+  // Always use Netlify function (works on Netlify AND local via `netlify dev`)
+  return '/.netlify/functions/quote?sym='+encodeURIComponent(sym)+'&range='+(range||'3y')+'&interval='+interval;
+}
+
 function fetchATH(sym){
-  var yahoo='https://query1.finance.yahoo.com/v8/finance/chart/'+encodeURIComponent(sym)+'?interval=1mo&range=5y';
-  return fetch('https://corsproxy.io/?'+encodeURIComponent(yahoo),{signal:AbortSignal.timeout(15000)})
+  var url=proxyUrl(sym,'5y','1mo');
+  return fetch(url,{signal:AbortSignal.timeout(20000)})
     .then(function(r){if(!r.ok)return null;return r.json();})
     .then(function(j){
       if(!j)return null;
@@ -952,12 +1022,10 @@ function fetchATH(sym){
     .catch(function(){return null;});
 }
 
-// ── MAIN FETCH — 2yr daily for accurate EMA200 streak ──
-// FIX: range=2y gives ~504 bars. EMA200 warmup=200 bars → ~304 bars of streak history.
-// With range=1y (~252 bars) EMA200 only had ~52 bars of history causing wrong ~50d streaks.
+// ── MAIN FETCH — 3yr daily data (more warmup for EMA200 weekly EMA accuracy) ──
 function fetchMain(sym){
-  var yahoo='https://query1.finance.yahoo.com/v8/finance/chart/'+encodeURIComponent(sym)+'?interval=1d&range=3y&includePrePost=false';
-  return fetch('https://corsproxy.io/?'+encodeURIComponent(yahoo),{signal:AbortSignal.timeout(25000)})
+  var url=proxyUrl(sym,'3y','1d');
+  return fetch(url,{signal:AbortSignal.timeout(30000)})
     .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
     .then(function(j){
       if(j.chart&&j.chart.error)throw new Error(j.chart.error.description||'Yahoo error');
@@ -1092,6 +1160,54 @@ function fetchMain(sym){
       var c_20gt50=(e20!=null&&e50!=null)?e20>e50:null;
       var c_pgt20=(price!=null&&e20!=null)?price>e20:null;
 
+      // ── 1M / 3M / 6M RETURNS (using close N bars ago) ──
+      function retPct(barsAgo){
+        var old=closes[closes.length-1-barsAgo];
+        return(old&&old>0)?(price-old)/old*100:null;
+      }
+      var ret1m=retPct(21),ret3m=retPct(63),ret6m=retPct(126);
+
+      // ── NR7: today's range is narrowest of last 7 days ──
+      var nr7=false;
+      if(highs.length>=7&&lows.length>=7){
+        var todRange=highs[highs.length-1]-lows[lows.length-1];
+        var nr7ok=true;
+        for(var nri=2;nri<=7;nri++){
+          var pr=highs[highs.length-nri]-lows[lows.length-nri];
+          if(pr<=todRange){nr7ok=false;break;}
+        }
+        nr7=nr7ok&&todRange>0;
+      }
+
+      // ── CONSECUTIVE UP/DOWN CLOSE DAYS ──
+      var consec=0;
+      if(closes.length>=2){
+        var up0=closes[closes.length-1]>closes[closes.length-2];
+        for(var ci=closes.length-1;ci>0;ci--){
+          var upI=closes[ci]>closes[ci-1];
+          if(upI===up0)consec+=(up0?1:-1);
+          else break;
+        }
+      }
+
+      // ── VOLUME DRY-UP: last 5d avg < 50% of 20d avg ──
+      var volDryUp=!!(wkAvg&&moAvg&&wkAvg<moAvg*0.5);
+
+      // ── COMPOSITE MOMENTUM SCORE (0-100) ──
+      // Each condition adds points, sort descending = best setups first
+      var score=0;
+      var bull_val=getBull(price,e20,e50,e100,e200);
+      var phase_val=getPhase(price,e20,e50,e100,e200);
+      if(bull_val===1)score+=20;                                  // Full BULL alignment
+      if(phase_val===2)score+=20;                                 // Stage 2 uptrend
+      if(c_pgt20)score+=10;                                       // Price > EMA20
+      if(c_100gt200)score+=10;                                    // 100 > 200
+      if(c_50gt100)score+=10;                                     // 50 > 100
+      if(todVol&&moAvg&&todVol>moAvg)score+=10;                  // Today vol > monthly avg
+      if(hi52&&price&&price>=hi52*0.95)score+=10;                // Within 5% of 52W high
+      if(wc_100gt200)score+=5;                                   // Weekly 100 > 200
+      if(wc_pgt20)score+=5;                                      // Weekly price > EMA20
+
       return{
         sym:sym,err:null,
         name:m.shortName||m.longName||sym,
@@ -1120,18 +1236,49 @@ function fetchMain(sym){
         adr:adr,awr:awr,
         daysFrH:daysFrH,daysFrL:daysFrL,
         wc_100gt200:wc_100gt200,wc_50gt100:wc_50gt100,wc_20gt50:wc_20gt50,wc_pgt20:wc_pgt20,
+        ret1m:ret1m,ret3m:ret3m,ret6m:ret6m,
+        nr7:nr7,consec:consec,volDryUp:volDryUp,score:score,
+        rsNifty:null,
         ath:null,pfath:null
       };
     });
 }
 
-// ── FETCH ONE (main + ATH parallel) ──
+// ── NIFTY RS — fetch ^NSEI once per session, compute 3M return ──
+var niftyRet3m=null,niftyFetched=false,niftyFetching=false;
+function fetchNifty(){
+  if(niftyFetched||niftyFetching)return Promise.resolve(niftyRet3m);
+  niftyFetching=true;
+  var url=proxyUrl('%5ENSEI','3y','1d');  // ^NSEI URL-encoded
+  return fetch(url,{signal:AbortSignal.timeout(20000)})
+    .then(function(r){return r.json();})
+    .then(function(j){
+      var res=j.chart&&j.chart.result&&j.chart.result[0];
+      if(!res)return null;
+      var q=(res.indicators&&res.indicators.quote&&res.indicators.quote[0])||{};
+      var nc=[];var rawNC=q.close||[];
+      for(var i=0;i<rawNC.length;i++){if(rawNC[i]!=null)nc.push(rawNC[i]);}
+      if(nc.length<64)return null;
+      var last=nc[nc.length-1];
+      var ago63=nc[nc.length-64];
+      niftyRet3m=(last&&ago63&&ago63>0)?(last-ago63)/ago63*100:null;
+      niftyFetched=true;
+      return niftyRet3m;
+    })
+    .catch(function(){niftyFetched=true;return null;});
+}
+
+// ── FETCH ONE (main + ATH + Nifty parallel) ──
 function fetchOne(sym){
-  return Promise.all([fetchMain(sym),fetchATH(sym)])
+  return Promise.all([fetchMain(sym),fetchATH(sym),fetchNifty()])
     .then(function(res){
       var d=res[0];
       d.ath=res[1];
       d.pfath=d.price&&d.ath?(d.price-d.ath)/d.ath*100:null;
+      // RS vs Nifty: stock 3M return / Nifty 3M return
+      if(d.ret3m!=null&&niftyRet3m!=null&&niftyRet3m!==0){
+        d.rsNifty=d.ret3m/niftyRet3m;
+      }
       cacheSet(sym,d);return d;
     });
 }
@@ -1193,7 +1340,7 @@ function go(syms){
 }
 
 // ── SORT ──
-var COLS=['','sym','name','industry','bull','phase','coil','price','pch','mcap','pfh','pfl','pfath','range5d','range4w','adr','awr','daysFrH','daysFrL','e20','e50','e100','e200','c_100gt200','c_50gt100','c_20gt50','c_pgt20','wc_100gt200','wc_50gt100','wc_20gt50','wc_pgt20','s20','s50','s100','s200','todVol','wkAvg','moAvg','qtrAvgVol'];
+var COLS=['','score','sym','name','industry','bull','phase','coil','price','pch','mcap','pfh','pfl','pfath','range5d','range4w','adr','awr','daysFrH','daysFrL','e20','e50','e100','e200','c_100gt200','c_50gt100','c_20gt50','c_pgt20','wc_100gt200','wc_50gt100','wc_20gt50','wc_pgt20','s20','s50','s100','s200','todVol','wkAvg','moAvg','qtrAvgVol'];
 function sortBy(col){
   sortCol===col?sortDir*=-1:(sortCol=col,sortDir=1);
   document.getElementById('colHeaders').querySelectorAll('th').forEach(function(th,i){
@@ -1236,10 +1383,11 @@ function getVolRatio(d){
 function applyFilters(){updateFilterBadge();renderTbl();}
 
 function clearAllFilters(){
-  ['f_sym','f_name','f_industry','f_bull','f_phase','f_coil',
+  ['f_sym','f_name','f_industry','f_score','f_bull','f_phase','f_coil',
    'f_price','f_pch','f_mcap','f_pfh','f_pfl','f_range5d','f_range4w','f_adr','f_daysFrH','f_daysFrL',
    'f_c100gt200','f_c50gt100','f_c20gt50','f_cpgt20',
-   'f_wc100gt200','f_wc50gt100','f_wc20gt50','f_wcpgt20','f_volratio_wk'].forEach(function(id){
+   'f_wc100gt200','f_wc50gt100','f_wc20gt50','f_wcpgt20','f_volratio_wk',
+   'f_ret3m','f_rs','f_nr7','f_vdu'].forEach(function(id){
     var el=document.getElementById(id);if(el)el.value='';
   });
   clearSmartFilters();
@@ -1283,12 +1431,13 @@ function applyPreset(name){
   // Apply preset filters
   function setv(id,v){var el=document.getElementById(id);if(el)el.value=v;}
   if(name==='s2bull'){
-    setv('f_bull','1');        // TREND = BULL
-    setv('f_phase','2');       // PHASE = S2 UP
-    setv('f_c100gt200','1');   // 100>200 YES
-    setv('f_c50gt100','1');    // 50>100 YES
-    setv('f_c20gt50','1');     // 20>50 YES
-    setv('f_cpgt20','1');      // P>20 YES
+    setv('f_bull','1');
+    setv('f_phase','2');
+    setv('f_score','60');      // Score ≥ 60
+    setv('f_c100gt200','1');
+    setv('f_c50gt100','1');
+    setv('f_c20gt50','1');
+    setv('f_cpgt20','1');
   } else if(name==='momentum'){
     setv('f_bull','1');        // TREND = BULL
     setv('f_phase','2');       // S2 UP
@@ -1306,20 +1455,22 @@ function applyPreset(name){
 function updateFilterBadge(){
   var count=0;
   ['f_sym','f_name','f_industry'].forEach(function(id){if(gv(id).trim())count++;});
-  ['f_bull','f_phase','f_coil','f_price','f_pch','f_mcap','f_pfh','f_pfl',
+  ['f_score','f_bull','f_phase','f_coil','f_price','f_pch','f_mcap','f_pfh','f_pfl',
    'f_range5d','f_range4w','f_adr','f_daysFrH','f_daysFrL',
    'f_c100gt200','f_c50gt100','f_c20gt50','f_cpgt20',
    'f_wc100gt200','f_wc50gt100','f_wc20gt50','f_wcpgt20','f_volratio_wk',
+   'f_ret3m','f_rs','f_nr7','f_vdu',
    'sf_pullback','sf_volratio','sf_bo52'].forEach(function(id){if(gv(id)!=='')count++;});
   var badge=document.getElementById('fBadge');
   var btn=document.getElementById('fClearBtn');
   if(count>0){badge.textContent=count+' filter'+(count>1?'s':'');badge.style.display='';btn.style.display='';}
   else{badge.style.display='none';btn.style.display='none';}
   // Highlight active selects
-  ['f_bull','f_phase','f_coil','f_price','f_pch','f_mcap','f_pfh','f_pfl',
+  ['f_score','f_bull','f_phase','f_coil','f_price','f_pch','f_mcap','f_pfh','f_pfl',
    'f_range5d','f_range4w','f_adr','f_daysFrH','f_daysFrL',
    'f_c100gt200','f_c50gt100','f_c20gt50','f_cpgt20',
    'f_wc100gt200','f_wc50gt100','f_wc20gt50','f_wcpgt20','f_volratio_wk',
+   'f_ret3m','f_rs','f_nr7','f_vdu',
    'sf_pullback','sf_volratio','sf_bo52'].forEach(function(id){
     var el=document.getElementById(id);
     if(el)el.className=el.className.replace(/ act/g,'')+(el.value!==''?' act':'');
@@ -1486,6 +1637,31 @@ function filteredData(){
       if(sfBo52==='near'&&!(d.pfh!=null&&d.pfh>=-2&&d.pfh<=0))return false;
       if(sfBo52==='at'&&!d.bo52h)return false;
     }
+    // Score filter
+    var fScore=gv('f_score');
+    if(fScore){
+      var sv=parseFloat(fScore);
+      if(fScore==='20'){if((d.score||0)>=20)return false;}
+      else if((d.score||0)<sv)return false;
+    }
+    // 3M return filter
+    var fRet3m=gv('f_ret3m');
+    if(fRet3m&&d.ret3m!=null){
+      if(fRet3m==='neg'&&d.ret3m>=0)return false;
+      else if(fRet3m!=='neg'&&d.ret3m<parseFloat(fRet3m))return false;
+    }
+    // RS vs Nifty filter
+    var fRs=gv('f_rs');
+    if(fRs&&d.rsNifty!=null){
+      if(fRs==='under'&&d.rsNifty>=1)return false;
+      else if(fRs!=='under'&&d.rsNifty<parseFloat(fRs))return false;
+    }
+    // NR7 filter
+    var fNr7=gv('f_nr7');
+    if(fNr7==='1'&&!d.nr7)return false;
+    // Vol dry-up filter
+    var fVdu=gv('f_vdu');
+    if(fVdu==='1'&&!d.volDryUp)return false;
 
     return true;
   });
@@ -1570,6 +1746,30 @@ function wYn(v){
   if(v===null||v===undefined)return '<span class="mu">-</span>';
   return v?'<span class="wyes">YES</span>':'<span class="wno">NO</span>';
 }
+// Score badge
+function scoreCell(s){
+  if(s==null)return '<span class="mu">-</span>';
+  var cls=s>=80?'score-hi':s>=50?'score-mid':'score-lo';
+  return '<span class="'+cls+'">'+s+'</span>';
+}
+// Return % cell
+function retCell(v){
+  if(v==null)return '<span class="mu">-</span>';
+  var cls=v>=20?'ret-hi':v>=0?'ret-mid':'ret-lo';
+  return '<span class="'+cls+'">'+(v>=0?'+':'')+v.toFixed(1)+'%</span>';
+}
+// RS vs Nifty
+function rsCell(v){
+  if(v==null)return '<span class="mu">—</span>';
+  var cls=v>=1.2?'rs-hi':v>=1?'rs-mid':'rs-lo';
+  return '<span class="'+cls+'">'+v.toFixed(2)+'x</span>';
+}
+// Consecutive days
+function consecCell(v){
+  if(!v)return '<span class="mu">—</span>';
+  var cls=v>0?'consec-up':'consec-dn';
+  return '<span class="'+cls+'">'+(v>0?'↑'+v+'d':'↓'+Math.abs(v)+'d')+'</span>';
+}
 function yn(v){
   if(v===null||v===undefined)return '<span class="mu">-</span>';
   return v?'<span class="yes">YES</span>':'<span class="no">NO</span>';
@@ -1634,11 +1834,11 @@ function renderTbl(){
     var symTd='<td style="text-align:left"><span class="sym">'+s+'</span><span class="xt">'+xt+'</span></td>';
     var indTd='<td style="text-align:left"><span class="ni">'+esc(d.industry||'—')+'</span></td>';
     if(d.loading){
-      h+='<tr>'+starTd+symTd+'<td style="text-align:left"><span class="nc">'+esc(d.name||'')+'</span></td>'+indTd+'<td colspan="31" class="ld">fetching...</td></tr>';
+      h+='<tr>'+starTd+symTd+'<td style="text-align:left"><span class="nc">'+esc(d.name||'')+'</span></td>'+indTd+'<td colspan="32" class="ld">fetching...</td></tr>';
     } else if(d.err){
-      h+='<tr>'+starTd+symTd+'<td style="text-align:left"><span class="nc">'+esc(d.name||'')+'</span></td>'+indTd+'<td colspan="31" class="er">'+esc(d.err)+'</td></tr>';
+      h+='<tr>'+starTd+symTd+'<td style="text-align:left"><span class="nc">'+esc(d.name||'')+'</span></td>'+indTd+'<td colspan="32" class="er">'+esc(d.err)+'</td></tr>';
     } else if(!d.price){
-      h+='<tr>'+starTd+symTd+'<td style="text-align:left"><span class="nc">'+esc(d.name||'')+'</span></td>'+indTd+'<td colspan="31" class="ld">—</td></tr>';
+      h+='<tr>'+starTd+symTd+'<td style="text-align:left"><span class="nc">'+esc(d.name||'')+'</span></td>'+indTd+'<td colspan="32" class="ld">—</td></tr>';
     } else {
       var pc=d.pch==null?'<span class="mu">-</span>':'<span class="'+(d.pch>=0?'up':'dn')+'">'+(d.pch>=0?'+':'')+d.pch.toFixed(2)+'%</span>';
       var pfhHtml=pfhCell(d);
@@ -1650,6 +1850,7 @@ function renderTbl(){
       var e200Cell=ep(d.e200)+(d.cross200?'<br>'+cross200Cell(d.cross200):'');
       h+='<tr>'
         +starTd
+        +'<td>'+scoreCell(d.score)+'</td>'
         +symTd
         +'<td style="text-align:left"><span class="nc">'+esc(d.name)+'</span></td>'
         +indTd
@@ -1688,6 +1889,12 @@ function renderTbl(){
         +'<td class="mu">'+fmtVol(d.wkAvg)+'</td>'
         +'<td class="mu">'+fmtVol(d.moAvg)+'</td>'
         +'<td>'+qtrVolCell(d)+'</td>'
+        +'<td class="sec-border">'+retCell(d.ret1m)+'</td>'
+        +'<td>'+retCell(d.ret3m)+'</td>'
+        +'<td>'+retCell(d.ret6m)+'</td>'
+        +'<td>'+rsCell(d.rsNifty)+'</td>'
+        +'<td>'+consecCell(d.consec)+(d.volDryUp?'<span class="t-vdu" title="Volume Dry-Up: low vol = possible coil">VDU</span>':'')+(d.nr7?'<span class="t-nr7" title="Narrowest Range in 7 Days">NR7</span>':'')+'</td>'
+        +'<td>'+(d.nr7?'<span class="t-nr7">NR7</span>':'<span class="mu">—</span>')+'</td>'
         +'</tr>';
     }
   });
@@ -1726,8 +1933,8 @@ function updateStats(){
 function setP(d,t){document.getElementById('prog').textContent=d+' / '+t;}
 
 // ── EXPORT ──
-var EXP_K=['sym','name','industry','bull','phase','coil','price','pch','mcap','pfh','pfl','pfath','range5d','range4w','adr','awr','daysFrH','daysFrL','hi52','lo52','ath','e20','e50','e100','e200','c_100gt200','c_50gt100','c_20gt50','c_pgt20','wc_100gt200','wc_50gt100','wc_20gt50','wc_pgt20','s20','s50','s100','s200','todVol','wkAvg','moAvg','qtrAvgVol','volRatio','bo52h','bo52l','volSpike','cross200'];
-var EXP_H=['Symbol','Name','Industry','Trend','Phase','Coil','Price','%Day','MCap_Cr','%52W_H','%52W_L','%5Y_H','5D_Rng%','4W_Rng%','ADR%','AWR%','DaysFr52H','DaysFr52L','52W_High','52W_Low','5Y_High','EMA20','EMA50','EMA100','EMA200','100>200','50>100','20>50','P>20','W:100>200','W:50>100','W:20>50','W:P>20','Days_vs20','Days_vs50','Days_vs100','Days_vs200','TodayVol','WkAvgVol','MoAvgVol','QtrAvgVol','WkVsQtrRatio','52W_BO','52W_BrkDn','VolSpike','Cross200EMA'];
+var EXP_K=['score','sym','name','industry','bull','phase','coil','price','pch','mcap','pfh','pfl','pfath','range5d','range4w','adr','awr','daysFrH','daysFrL','hi52','lo52','ath','e20','e50','e100','e200','c_100gt200','c_50gt100','c_20gt50','c_pgt20','wc_100gt200','wc_50gt100','wc_20gt50','wc_pgt20','s20','s50','s100','s200','todVol','wkAvg','moAvg','qtrAvgVol','volRatio','ret1m','ret3m','ret6m','rsNifty','nr7','consec','volDryUp','bo52h','bo52l','volSpike','cross200'];
+var EXP_H=['Score','Symbol','Name','Industry','Trend','Phase','Coil','Price','%Day','MCap_Cr','%52W_H','%52W_L','%5Y_H','5D_Rng%','4W_Rng%','ADR%','AWR%','DaysFr52H','DaysFr52L','52W_High','52W_Low','5Y_High','EMA20','EMA50','EMA100','EMA200','100>200','50>100','20>50','P>20','W:100>200','W:50>100','W:20>50','W:P>20','Days_vs20','Days_vs50','Days_vs100','Days_vs200','TodayVol','WkAvgVol','MoAvgVol','QtrAvgVol','WkVsQtrRatio','Ret1M%','Ret3M%','Ret6M%','RS_Nifty','NR7','ConsecDays','VolDryUp','52W_BO','52W_BrkDn','VolSpike','Cross200EMA'];
 function bullStr(v){return v===1?'BULL':v===-1?'BEAR':'MIX';}
 function phaseStr(v){var l=['','S1_BASE','S2_UP','S3_TOP','S4_DOWN'];return v!=null?l[v]:'';}
 function rowToArr(d){
@@ -1787,16 +1994,18 @@ var CV_KEY='sp5colvis';
 // Map: group id → array of column indices that it controls
 // Cols: 0=star 1=sym 2=name 3=ind 4=trend 5=phase 6=coil 7=price 8=pch 9=mcap 10=pfh 11=pfl 12=pfath 13=rng5 14=rng4 15=adr 16=awr 17=dfH 18=dfL 19=e20 20=e50 21=e100 22=e200 23=c1 24=c2 25=c3 26=c4 27=wc1 28=wc2 29=wc3 30=wc4 31=s20 32=s50 33=s100 34=s200 35=tvol 36=wvol 37=mvol 38=qvol
 var COL_VIS_MAP={
-  cv_industry:[3],
-  cv_trend:[4],cv_phase:[5],cv_coil:[6],
-  cv_pch:[8],cv_mcap:[9],
-  cv_52w:[10,11],cv_5yh:[12],
-  cv_rng:[13,14],cv_adr:[15,16],cv_pb52:[17,18],
-  cv_ema_vals:[19,20,21,22],
-  cv_ema_cond:[23,24,25,26],
-  cv_wema:[27,28,29,30],
-  cv_streaks:[31,32,33,34],
-  cv_vol:[35,36,37,38]
+  cv_score:[1],
+  cv_industry:[4],
+  cv_trend:[5],cv_phase:[6],cv_coil:[7],
+  cv_pch:[9],cv_mcap:[10],
+  cv_52w:[11,12],cv_5yh:[13],
+  cv_rng:[14,15],cv_adr:[16,17],cv_pb52:[18,19],
+  cv_ema_vals:[20,21,22,23],
+  cv_ema_cond:[24,25,26,27],
+  cv_wema:[28,29,30,31],
+  cv_streaks:[32,33,34,35],
+  cv_vol:[36,37,38,39],
+  cv_momentum:[40,41,42,43,44,45]
 };
 function toggleColVis(){
   document.getElementById('colVisPanel').classList.toggle('on');
