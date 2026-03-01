@@ -1001,16 +1001,28 @@ function getPhase(p,e20,e50,e100,e200){
 }
 
 // ── ATH FETCH (monthly 5yr — lightweight) ──
-// ── PROXY URL — uses Netlify function when deployed, direct when local ──
+// ── PROXY URL with fallback ──
 function proxyUrl(sym,range,interval){
   interval=interval||'1d';
-  // Always use Netlify function (works on Netlify AND local via `netlify dev`)
   return '/.netlify/functions/quote?sym='+encodeURIComponent(sym)+'&range='+(range||'3y')+'&interval='+interval;
+}
+function proxyFetch(sym,range,interval){
+  var url=proxyUrl(sym,range,interval);
+  return fetch(url,{signal:AbortSignal.timeout(25000)})
+    .then(function(r){
+      if(r.status===404||r.status===502){
+        // Function not deployed — fall back to corsproxy.io
+        var yahoo='https://query1.finance.yahoo.com/v8/finance/chart/'+encodeURIComponent(sym)
+          +'?interval='+(interval||'1d')+'&range='+(range||'3y')+'&includePrePost=false';
+        return fetch('https://corsproxy.io/?url='+encodeURIComponent(yahoo),{signal:AbortSignal.timeout(25000)});
+      }
+      return r;
+    });
 }
 
 function fetchATH(sym){
   var url=proxyUrl(sym,'5y','1mo');
-  return fetch(url,{signal:AbortSignal.timeout(20000)})
+  return proxyFetch(sym,'5y','1mo')
     .then(function(r){if(!r.ok)return null;return r.json();})
     .then(function(j){
       if(!j)return null;
@@ -1024,8 +1036,7 @@ function fetchATH(sym){
 
 // ── MAIN FETCH — 3yr daily data (more warmup for EMA200 weekly EMA accuracy) ──
 function fetchMain(sym){
-  var url=proxyUrl(sym,'3y','1d');
-  return fetch(url,{signal:AbortSignal.timeout(30000)})
+  return proxyFetch(sym,'3y','1d')
     .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
     .then(function(j){
       if(j.chart&&j.chart.error)throw new Error(j.chart.error.description||'Yahoo error');
@@ -1249,8 +1260,7 @@ var niftyRet3m=null,niftyFetched=false,niftyFetching=false;
 function fetchNifty(){
   if(niftyFetched||niftyFetching)return Promise.resolve(niftyRet3m);
   niftyFetching=true;
-  var url=proxyUrl('%5ENSEI','3y','1d');  // ^NSEI URL-encoded
-  return fetch(url,{signal:AbortSignal.timeout(20000)})
+  return proxyFetch('%5ENSEI','3y','1d')
     .then(function(r){return r.json();})
     .then(function(j){
       var res=j.chart&&j.chart.result&&j.chart.result[0];
