@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Excel → tickers.json Converter | StockPulse</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+:root{--bg:#070b14;--bg2:#0d1220;--bg3:#111827;--border:#1e2d45;--text:#e2e8f4;--mu:#4a6080;--mu2:#6b84a0;--acc:#f59e0b;--green:#10d98a;--red:#f43f60;--radius:8px;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-size:14px;min-height:100vh;}
+header{background:linear-gradient(135deg,#0d1f3c,#071428);border-bottom:1px solid rgba(245,158,11,.15);padding:16px 24px;display:flex;align-items:center;gap:12px;}
+.logo{font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:700;background:linear-gradient(135deg,#f59e0b,#fbbf24);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:2px;}
+.subtitle{font-size:12px;color:var(--mu2);margin-left:8px;}
+.container{max-width:860px;margin:0 auto;padding:32px 24px;}
+h1{font-size:22px;font-weight:700;margin-bottom:6px;}
+.desc{color:var(--mu2);font-size:13px;line-height:1.7;margin-bottom:28px;}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:20px;}
+.card-title{font-size:12px;font-weight:700;letter-spacing:1px;color:var(--acc);text-transform:uppercase;margin-bottom:14px;}
+.drop-zone{border:2px dashed var(--border);border-radius:var(--radius);padding:40px;text-align:center;cursor:pointer;transition:all .2s;position:relative;}
+.drop-zone:hover,.drop-zone.drag{border-color:var(--acc);background:rgba(245,158,11,.05);}
+.drop-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+.dz-icon{font-size:32px;margin-bottom:10px;}
+.dz-text{color:var(--mu2);font-size:13px;}
+.dz-text strong{color:var(--text);}
+.col-map{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:16px;}
+.col-group label{display:block;font-size:11px;color:var(--mu2);margin-bottom:4px;font-weight:600;letter-spacing:.4px;}
+select,input[type=text]{background:var(--bg3);border:1px solid var(--border);color:var(--text);font-family:'Inter',sans-serif;font-size:12px;padding:7px 10px;border-radius:6px;outline:none;width:100%;cursor:pointer;}
+select:focus,input:focus{border-color:var(--acc);}
+.exchange-row{display:flex;gap:8px;align-items:center;margin-top:14px;}
+.exch-btn{background:var(--bg3);border:1px solid var(--border);color:var(--mu2);font-family:'Inter',sans-serif;font-size:12px;font-weight:600;padding:6px 16px;border-radius:6px;cursor:pointer;transition:all .15s;}
+.exch-btn.on{background:rgba(245,158,11,.12);border-color:var(--acc);color:var(--acc);}
+.stats-row{display:flex;gap:16px;flex-wrap:wrap;margin-top:16px;padding:12px 16px;background:var(--bg3);border-radius:6px;border:1px solid var(--border);}
+.stat{font-size:12px;color:var(--mu2);}
+.stat strong{color:var(--text);font-family:'JetBrains Mono',monospace;}
+.preview{overflow:auto;max-height:260px;background:var(--bg3);border-radius:6px;border:1px solid var(--border);}
+.preview table{width:100%;border-collapse:collapse;font-size:11px;font-family:'JetBrains Mono',monospace;}
+.preview th{position:sticky;top:0;background:#0d1a2e;padding:7px 12px;text-align:left;color:var(--mu2);font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;border-bottom:1px solid var(--border);}
+.preview td{padding:5px 12px;border-bottom:1px solid rgba(30,45,69,.5);color:var(--text);}
+.preview tr:hover td{background:rgba(59,130,246,.05);}
+.preview .sym-cell{color:var(--acc);font-weight:600;}
+.preview .ind-cell{color:var(--mu2);}
+.btn-row{display:flex;gap:10px;margin-top:20px;flex-wrap:wrap;}
+.btn-primary{background:linear-gradient(135deg,#f59e0b,#fbbf24);border:none;color:#000;font-family:'Inter',sans-serif;font-size:13px;font-weight:700;padding:10px 24px;border-radius:var(--radius);cursor:pointer;transition:all .2s;letter-spacing:.3px;}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 4px 18px rgba(245,158,11,.4);}
+.btn-primary:disabled{opacity:.4;cursor:not-allowed;transform:none;}
+.btn-sec{background:transparent;border:1px solid var(--border);color:var(--mu2);font-family:'Inter',sans-serif;font-size:12px;padding:9px 18px;border-radius:var(--radius);cursor:pointer;transition:all .15s;}
+.btn-sec:hover{border-color:var(--acc);color:var(--acc);}
+.output-box{background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:14px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--green);max-height:200px;overflow:auto;white-space:pre;display:none;margin-top:16px;}
+.steps{counter-reset:steps;}
+.step{display:flex;gap:14px;align-items:flex-start;padding:14px 0;border-bottom:1px solid rgba(30,45,69,.5);}
+.step:last-child{border-bottom:none;}
+.step-num{background:linear-gradient(135deg,#f59e0b,#fbbf24);color:#000;font-weight:700;font-size:12px;min-width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;}
+.step-text{font-size:13px;line-height:1.6;color:var(--text);}
+.step-text code{background:var(--bg3);border:1px solid var(--border);padding:1px 6px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--acc);}
+.badge{display:inline-block;font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;background:rgba(16,217,138,.12);color:var(--green);border:1px solid rgba(16,217,138,.2);margin-left:6px;}
+#statusMsg{display:none;padding:10px 14px;border-radius:6px;font-size:12px;margin-top:12px;}
+#statusMsg.ok{background:rgba(16,217,138,.1);border:1px solid rgba(16,217,138,.2);color:var(--green);}
+#statusMsg.er{background:rgba(244,63,96,.1);border:1px solid rgba(244,63,96,.2);color:var(--red);}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">STOCKPULSE.IN</div>
+  <span class="subtitle">// Excel → tickers.json Converter</span>
+</header>
+
+<div class="container">
+  <h1>Upload Your Stock List</h1>
+  <p class="desc">Upload your Excel (.xlsx) or CSV file → preview → download <code style="background:var(--bg3);border:1px solid var(--border);padding:1px 7px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--acc)">tickers.json</code> → upload to GitHub root. All visitors see your updated list automatically.</p>
+
+  <!-- UPLOAD -->
+  <div class="card">
+    <div class="card-title">Step 1 — Upload Your Excel / CSV</div>
+    <div class="drop-zone" id="dropZone" ondragover="onDrag(event,true)" ondragleave="onDrag(event,false)" ondrop="onDrop(event)">
+      <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" onchange="handleFile(this.files[0])">
+      <div class="dz-icon">📂</div>
+      <div class="dz-text"><strong>Click or drag your Excel / CSV file here</strong><br>Columns needed: Ticker (required), Name, Industry (optional)</div>
+    </div>
+    <div id="statusMsg"></div>
+
+    <!-- COLUMN MAPPING (shown after file loads) -->
+    <div id="colMapSection" style="display:none;margin-top:18px;">
+      <div style="font-size:12px;font-weight:600;color:var(--mu2);margin-bottom:10px;letter-spacing:.4px;text-transform:uppercase;">Map Your Columns</div>
+      <div class="col-map">
+        <div class="col-group">
+          <label>TICKER COLUMN *</label>
+          <select id="colTicker" onchange="rebuildPreview()"></select>
+        </div>
+        <div class="col-group">
+          <label>NAME COLUMN</label>
+          <select id="colName" onchange="rebuildPreview()"><option value="">— skip —</option></select>
+        </div>
+        <div class="col-group">
+          <label>INDUSTRY COLUMN</label>
+          <select id="colIndustry" onchange="rebuildPreview()"><option value="">— skip —</option></select>
+        </div>
+      </div>
+      <div class="exchange-row">
+        <span style="font-size:12px;color:var(--mu2);">Default Exchange:</span>
+        <button class="exch-btn on" id="btnNS" onclick="setExch('NS')">NSE (.NS)</button>
+        <button class="exch-btn" id="btnBO" onclick="setExch('BO')">BSE (.BO)</button>
+        <span style="font-size:11px;color:var(--mu);margin-left:6px;">(appended if ticker has no suffix)</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- PREVIEW -->
+  <div class="card" id="previewCard" style="display:none;">
+    <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+      <span>Step 2 — Preview <span id="previewBadge" class="badge"></span></span>
+      <span style="font-size:11px;color:var(--mu2)" id="dupNote"></span>
+    </div>
+    <div class="stats-row">
+      <div class="stat">Total rows: <strong id="statTotal">0</strong></div>
+      <div class="stat">Valid tickers: <strong id="statValid">0</strong></div>
+      <div class="stat">Skipped: <strong id="statSkipped">0</strong></div>
+      <div class="stat">With industry: <strong id="statWithInd">0</strong></div>
+    </div>
+    <div class="preview" style="margin-top:12px;">
+      <table><thead><tr><th>#</th><th>sym</th><th>name</th><th>industry</th></tr></thead>
+      <tbody id="previewTbody"></tbody></table>
+    </div>
+    <div class="btn-row">
+      <button class="btn-primary" id="downloadBtn" onclick="downloadJSON()" disabled>⬇ Download tickers.json</button>
+      <button class="btn-sec" onclick="document.getElementById('fileInput').click()">↺ Re-upload</button>
+    </div>
+    <div class="output-box" id="outputBox"></div>
+  </div>
+
+  <!-- HOW TO DEPLOY -->
+  <div class="card">
+    <div class="card-title">Step 3 — Deploy to GitHub</div>
+    <div class="steps">
+      <div class="step"><div class="step-num">1</div><div class="step-text">Download <code>tickers.json</code> using the button above</div></div>
+      <div class="step"><div class="step-num">2</div><div class="step-text">Go to your GitHub repo → find <code>tickers.json</code> in the root → click the pencil ✏ icon to edit, or drag-drop to upload and replace it</div></div>
+      <div class="step"><div class="step-num">3</div><div class="step-text">Click <strong>Commit changes</strong> — Netlify auto-deploys in ~30 seconds</div></div>
+      <div class="step"><div class="step-num">4</div><div class="step-text">All visitors now see your new stock list. Their browser fetches cached data first, then auto-refreshes in the background</div></div>
+    </div>
+  </div>
+
+  <!-- FORMAT GUIDE -->
+  <div class="card">
+    <div class="card-title">Excel Format Guide</div>
+    <div style="font-size:12px;color:var(--mu2);line-height:1.8;">
+      Your Excel can have any column order. This converter auto-detects common headers:<br><br>
+      <strong style="color:var(--text)">Ticker:</strong> <code style="background:var(--bg3);padding:1px 6px;border-radius:3px;font-family:monospace;color:var(--acc)">Ticker / Symbol / Sym / Stock</code><br>
+      <strong style="color:var(--text)">Name:</strong> <code style="background:var(--bg3);padding:1px 6px;border-radius:3px;font-family:monospace;color:var(--acc)">Name / Company / CompanyName</code><br>
+      <strong style="color:var(--text)">Industry:</strong> <code style="background:var(--bg3);padding:1px 6px;border-radius:3px;font-family:monospace;color:var(--acc)">Industry / Sector / Category</code><br><br>
+      Tickers without <code style="background:var(--bg3);padding:1px 6px;border-radius:3px;font-family:monospace;color:var(--acc)">.NS</code> or <code style="background:var(--bg3);padding:1px 6px;border-radius:3px;font-family:monospace;color:var(--acc)">.BO</code> get the default exchange appended automatically.
+    </div>
+  </div>
+</div>
+
+<script>
+// Uses SheetJS from CDN for xlsx parsing
+var SHEETJS_CDN = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+var sheetJsLoaded = false;
+var parsedRows = []; // raw rows from file
+var headers = [];
+var defaultExch = 'NS';
+
+function loadSheetJS(cb) {
+  if (sheetJsLoaded) { cb(); return; }
+  var s = document.createElement('script');
+  s.src = SHEETJS_CDN;
+  s.onload = function() { sheetJsLoaded = true; cb(); };
+  s.onerror = function() { showStatus('Failed to load Excel parser. Check your internet connection.', 'er'); };
+  document.head.appendChild(s);
+}
+
+function onDrag(e, over) {
+  e.preventDefault();
+  document.getElementById('dropZone').classList[over ? 'add' : 'remove']('drag');
+}
+function onDrop(e) {
+  e.preventDefault();
+  document.getElementById('dropZone').classList.remove('drag');
+  var file = e.dataTransfer.files[0];
+  if (file) handleFile(file);
+}
+
+function handleFile(file) {
+  if (!file) return;
+  showStatus('Reading file…', '');
+  var isCSV = /\.csv$/i.test(file.name);
+  if (isCSV) {
+    var r = new FileReader();
+    r.onload = function(e) { parseCSV(e.target.result); };
+    r.readAsText(file);
+  } else {
+    loadSheetJS(function() {
+      var r = new FileReader();
+      r.onload = function(e) { parseXLSX(e.target.result); };
+      r.readAsArrayBuffer(file);
+    });
+  }
+}
+
+function parseXLSX(buf) {
+  try {
+    var wb = XLSX.read(buf, { type: 'array' });
+    var ws = wb.Sheets[wb.SheetNames[0]];
+    var data = XLSX.utils.sheet_to_csv(ws);
+    parseCSV(data);
+  } catch(e) {
+    showStatus('Could not parse Excel: ' + e.message, 'er');
+  }
+}
+
+function parseCSV(text) {
+  var lines = text.split(/\r?\n/).map(function(l) { return l.trim(); }).filter(Boolean);
+  if (lines.length < 2) { showStatus('File appears empty or has no data rows.', 'er'); return; }
+
+  // Parse header
+  headers = splitCSVLine(lines[0]).map(function(h) { return h.trim().replace(/^["']|["']$/g,''); });
+
+  // Parse rows
+  parsedRows = [];
+  for (var i = 1; i < lines.length; i++) {
+    var cols = splitCSVLine(lines[i]).map(function(v) { return v.trim().replace(/^["']|["']$/g,''); });
+    if (cols.every(function(v) { return !v; })) continue;
+    var row = {};
+    headers.forEach(function(h, idx) { row[h] = cols[idx] || ''; });
+    parsedRows.push(row);
+  }
+
+  showStatus('✓ Loaded ' + parsedRows.length + ' rows from file', 'ok');
+  populateColMap();
+  document.getElementById('colMapSection').style.display = '';
+  rebuildPreview();
+}
+
+function splitCSVLine(line) {
+  var result = [], cur = '', inQ = false;
+  for (var i = 0; i < line.length; i++) {
+    var ch = line[i];
+    if (ch === '"') { inQ = !inQ; }
+    else if (ch === ',' && !inQ) { result.push(cur); cur = ''; }
+    else { cur += ch; }
+  }
+  result.push(cur);
+  return result;
+}
+
+function populateColMap() {
+  var selT = document.getElementById('colTicker');
+  var selN = document.getElementById('colName');
+  var selI = document.getElementById('colIndustry');
+
+  // Build options
+  var opts = headers.map(function(h, i) {
+    return '<option value="' + i + '">' + h + '</option>';
+  }).join('');
+
+  selT.innerHTML = opts;
+  selN.innerHTML = '<option value="">— skip —</option>' + opts;
+  selI.innerHTML = '<option value="">— skip —</option>' + opts;
+
+  // Auto-detect
+  headers.forEach(function(h, i) {
+    var hl = h.toLowerCase();
+    if (/ticker|symbol|sym|stock/.test(hl)) selT.value = i;
+    else if (/^name$|company/.test(hl)) selN.value = i;
+    else if (/industry|sector|category/.test(hl)) selI.value = i;
+  });
+}
+
+function setExch(e) {
+  defaultExch = e;
+  document.getElementById('btnNS').className = 'exch-btn' + (e === 'NS' ? ' on' : '');
+  document.getElementById('btnBO').className = 'exch-btn' + (e === 'BO' ? ' on' : '');
+  rebuildPreview();
+}
+
+function buildTickerList() {
+  var ti = parseInt(document.getElementById('colTicker').value);
+  var ni = document.getElementById('colName').value;
+  var ii = document.getElementById('colIndustry').value;
+
+  var seen = {}, result = [], skipped = 0;
+  parsedRows.forEach(function(row) {
+    var rawSym = headers[ti] ? (row[headers[ti]] || '').trim().toUpperCase() : '';
+    if (!rawSym || rawSym === 'TICKER' || rawSym === 'SYMBOL') { skipped++; return; }
+    var sym = rawSym.indexOf('.') >= 0 ? rawSym : rawSym + '.' + defaultExch;
+    if (seen[sym]) { skipped++; return; } // deduplicate
+    seen[sym] = true;
+    var name = ni !== '' ? (row[headers[parseInt(ni)]] || '') : '';
+    var industry = ii !== '' ? (row[headers[parseInt(ii)]] || '') : '';
+    result.push({ sym: sym, name: name, industry: industry });
+  });
+  return { list: result, skipped: skipped };
+}
+
+function rebuildPreview() {
+  if (!parsedRows.length) return;
+  var built = buildTickerList();
+  var list = built.list;
+
+  document.getElementById('previewCard').style.display = '';
+  document.getElementById('previewBadge').textContent = list.length + ' stocks';
+  document.getElementById('statTotal').textContent = parsedRows.length;
+  document.getElementById('statValid').textContent = list.length;
+  document.getElementById('statSkipped').textContent = built.skipped;
+  document.getElementById('statWithInd').textContent = list.filter(function(x) { return x.industry; }).length;
+
+  var html = '';
+  var show = list.slice(0, 100); // show first 100 in preview
+  show.forEach(function(item, i) {
+    html += '<tr>'
+      + '<td style="color:var(--mu);width:40px">' + (i+1) + '</td>'
+      + '<td class="sym-cell">' + item.sym + '</td>'
+      + '<td>' + (item.name || '<span style="color:var(--mu)">—</span>') + '</td>'
+      + '<td class="ind-cell">' + (item.industry || '<span style="color:var(--mu)">—</span>') + '</td>'
+      + '</tr>';
+  });
+  if (list.length > 100) {
+    html += '<tr><td colspan="4" style="text-align:center;color:var(--mu);padding:10px">…and ' + (list.length - 100) + ' more</td></tr>';
+  }
+  document.getElementById('previewTbody').innerHTML = html;
+  document.getElementById('downloadBtn').disabled = list.length === 0;
+}
+
+function downloadJSON() {
+  var built = buildTickerList();
+  var json = JSON.stringify(built.list, null, 2);
+
+  // Show preview of JSON
+  var box = document.getElementById('outputBox');
+  box.style.display = '';
+  box.textContent = json.substring(0, 800) + (json.length > 800 ? '\n…' : '');
+
+  // Download
+  var blob = new Blob([json], { type: 'application/json' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = 'tickers.json';
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showStatus('✓ Downloaded tickers.json (' + built.list.length + ' stocks). Now upload to GitHub root.', 'ok');
+}
+
+function showStatus(msg, type) {
+  var el = document.getElementById('statusMsg');
+  el.textContent = msg;
+  el.className = type;
+  el.style.display = '';
+}
+</script>
+</body>
+</html>
