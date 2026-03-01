@@ -1,6 +1,6 @@
 [build]
   publish = "."
-  functions = "netlify/functions"
+  functions = "Netlify/functions"
 
 [build.environment]
   NODE_VERSION = "18"
@@ -9,7 +9,6 @@
   for = "/*"
   [headers.values]
     X-Frame-Options = "SAMEORIGIN"
-    X-Content-Type-Options = "nosniff"
 
 [[headers]]
   for = "/.netlify/functions/*"
