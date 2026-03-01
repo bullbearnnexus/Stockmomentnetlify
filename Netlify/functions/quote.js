@@ -1,67 +1,79 @@
-// quote.js — Netlify serverless Yahoo Finance proxy
-// Routes: /.netlify/functions/quote?sym=TCS.NS&range=3y
-//         /.netlify/functions/quote?sym=^NSEI&range=3mo (Nifty index)
+// StockPulse — Yahoo Finance proxy for Netlify Functions
+// Usage: /.netlify/functions/quote?sym=TCS.NS&range=3y&interval=1d
+
 const https = require('https');
 
-const HEADERS_OUT = {
+const CORS = {
   'Content-Type': 'application/json',
   'Access-Control-Allow-Origin': '*',
-  'Cache-Control': 'public, max-age=900' // 15min browser cache
+  'Access-Control-Allow-Methods': 'GET, OPTIONS',
+  'Cache-Control': 'public, max-age=900'
 };
 
-exports.handler = async (event) => {
+exports.handler = function(event, context, callback) {
   if (event.httpMethod === 'OPTIONS') {
-    return { statusCode: 200, headers: HEADERS_OUT, body: '' };
+    return callback(null, { statusCode: 200, headers: CORS, body: '' });
   }
 
-  const p = event.queryStringParameters || {};
-  if (!p.sym) return resp(400, { error: 'Need ?sym=' });
+  var p = event.queryStringParameters || {};
+  if (!p.sym) {
+    return callback(null, { statusCode: 400, headers: CORS, body: JSON.stringify({ error: 'Missing ?sym=' }) });
+  }
 
-  const sym      = decodeURIComponent(p.sym.trim());
-  const range    = p.range  || '3y';
-  const interval = p.interval || '1d';
+  var sym      = decodeURIComponent(p.sym.trim());
+  var range    = p.range    || '3y';
+  var interval = p.interval || '1d';
 
-  const errors = [];
-  for (const host of ['query1', 'query2']) {
-    try {
-      const url = `https://${host}.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}` +
-        `?interval=${interval}&range=${range}&includePrePost=false`;
-      const body = await get(url);
-      // Validate it's actual data
-      const json = JSON.parse(body);
-      if (json.chart && json.chart.error) throw new Error(json.chart.error.description || 'Yahoo error');
-      if (!json.chart?.result?.[0]) throw new Error('No result');
-      return { statusCode: 200, headers: HEADERS_OUT, body };
-    } catch (e) {
-      errors.push(e.message);
+  var tried = 0;
+  var hosts = ['query1', 'query2'];
+
+  function tryHost(i) {
+    if (i >= hosts.length) {
+      return callback(null, {
+        statusCode: 502,
+        headers: CORS,
+        body: JSON.stringify({ error: 'Yahoo Finance unavailable after ' + tried + ' attempts' })
+      });
     }
-  }
-  return resp(502, { error: 'Yahoo unavailable: ' + errors.join(' | ') });
-};
 
-function resp(code, obj) {
-  return { statusCode: code, headers: HEADERS_OUT, body: JSON.stringify(obj) };
-}
+    var url = 'https://' + hosts[i] + '.finance.yahoo.com/v8/finance/chart/' +
+      encodeURIComponent(sym) +
+      '?interval=' + interval +
+      '&range=' + range +
+      '&includePrePost=false';
 
-function get(url) {
-  return new Promise((resolve, reject) => {
-    const req = https.get(url, {
+    var req = https.get(url, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36',
-        'Accept': 'application/json,text/plain,*/*',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Referer': 'https://finance.yahoo.com/',
-        'Origin': 'https://finance.yahoo.com'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0 Safari/537.36',
+        'Accept': 'application/json',
+        'Referer': 'https://finance.yahoo.com/'
       },
       timeout: 20000
-    }, res => {
-      if (res.statusCode === 429) { reject(new Error('Rate limited (429)')); return; }
-      if (res.statusCode !== 200) { reject(new Error('HTTP ' + res.statusCode)); return; }
-      let b = '';
-      res.on('data', c => b += c);
-      res.on('end', () => resolve(b));
+    }, function(res) {
+      if (res.statusCode !== 200) {
+        tried++;
+        return tryHost(i + 1);
+      }
+      var body = '';
+      res.on('data', function(chunk) { body += chunk; });
+      res.on('end', function() {
+        try {
+          var json = JSON.parse(body);
+          if (json.chart && json.chart.error) {
+            tried++;
+            return tryHost(i + 1);
+          }
+          callback(null, { statusCode: 200, headers: CORS, body: body });
+        } catch (e) {
+          tried++;
+          tryHost(i + 1);
+        }
+      });
     });
-    req.on('error', reject);
-    req.on('timeout', () => { req.destroy(); reject(new Error('Timeout')); });
-  });
-}
+
+    req.on('error', function() { tried++; tryHost(i + 1); });
+    req.on('timeout', function() { req.destroy(); tried++; tryHost(i + 1); });
+  }
+
+  tryHost(0);
+};
