@@ -781,6 +781,7 @@ body.light #footer{background:#e8edf6;}
 <div id="toast"></div>
 
 <script>
+var _todayDate=new Date().toDateString();
 var DB_KEY='sp5db2',CACHE_KEY='sp5cache13',WL_KEY='sp5wl',SNAP_KEY='sp5snap',IND_KEY='sp5ind',CACHE_TTL=4*60*60*1000;
 // Stock list loaded from /tickers.json — edit that file in GitHub to update for all visitors
 var DEFAULT_LIST=[];  // populated async from tickers.json
@@ -1112,22 +1113,24 @@ function proxyFetch(sym,range,interval){
   return fetch(netlifyUrl,{signal:AbortSignal.timeout(30000)})
     .then(function(r){
       if(r.ok)return r;
-      // Netlify fn failed — try allorigins proxy
+      // Netlify fn returned error — try corsproxy then allorigins
       var yahoo=yahooUrl(sym,range,interval);
-      var ao='https://api.allorigins.win/raw?url='+encodeURIComponent(yahoo);
-      return fetch(ao,{signal:AbortSignal.timeout(30000)})
+      return fetch('https://corsproxy.io/?'+encodeURIComponent(yahoo),{signal:AbortSignal.timeout(30000)})
         .then(function(r2){
           if(r2.ok)return r2;
-          // Last resort — corsproxy
-          return fetch('https://corsproxy.io/?'+encodeURIComponent(yahoo),{signal:AbortSignal.timeout(30000)});
+          return fetch('https://api.allorigins.win/raw?url='+encodeURIComponent(yahoo),{signal:AbortSignal.timeout(30000)});
         });
     })
     .catch(function(){
-      // Netlify network error — try allorigins then corsproxy
+      // Netlify fn error — try corsproxy then allorigins
       var yahoo=yahooUrl(sym,range,interval);
-      return fetch('https://api.allorigins.win/raw?url='+encodeURIComponent(yahoo),{signal:AbortSignal.timeout(30000)})
+      return fetch('https://corsproxy.io/?'+encodeURIComponent(yahoo),{signal:AbortSignal.timeout(30000)})
+        .then(function(r){
+          if(r.ok)return r;
+          return fetch('https://api.allorigins.win/raw?url='+encodeURIComponent(yahoo),{signal:AbortSignal.timeout(30000)});
+        })
         .catch(function(){
-          return fetch('https://corsproxy.io/?'+encodeURIComponent(yahoo),{signal:AbortSignal.timeout(30000)});
+          return fetch('https://api.allorigins.win/raw?url='+encodeURIComponent(yahoo),{signal:AbortSignal.timeout(30000)});
         });
     });
 }
@@ -1431,7 +1434,10 @@ function go(syms){
   total=toFetch.length;
   renderTbl();updateStats();
   if(!total){
-    document.getElementById('lastUpd').textContent='From cache: '+new Date().toLocaleTimeString('en-IN');
+    var _cn=new Date();
+    document.getElementById('lastUpd').textContent=
+      'Cache: '+_cn.toLocaleDateString('en-IN',{day:'2-digit',month:'short'})
+      +' '+_cn.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:true});
     toast('All '+syms.length+' from cache','ok');updateCacheNote();return;
   }
   setP(0,total);
@@ -1448,7 +1454,10 @@ function go(syms){
         .finally(function(){
           done++;setP(done,total);updateStats();renderTbl();
           if(done===total){
-            document.getElementById('lastUpd').textContent='Updated: '+new Date().toLocaleTimeString('en-IN');
+            var _now=new Date();
+            document.getElementById('lastUpd').textContent=
+              'Updated: '+_now.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})
+              +' '+_now.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:true});
             toast('Done — '+total+' fetched','ok');updateCacheNote();
             showAlerts(checkAlerts());
           }
@@ -2323,7 +2332,10 @@ function finishInit(){
     document.getElementById('sbar').className='on';
     document.getElementById('tbl').style.display='';
     document.getElementById('empty').style.display='none';
-    document.getElementById('lastUpd').textContent='From cache';
+    var _fc=new Date();
+  document.getElementById('lastUpd').textContent=
+    'Cache: '+_fc.toLocaleDateString('en-IN',{day:'2-digit',month:'short'})
+    +' '+_fc.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:true});
   }
   // Auto-fetch if user/visitor has no cached data at all
   var needFetch=db.filter(function(t){return !rows[t.sym]||rows[t.sym].err;}).map(function(t){return t.sym;});
