@@ -1994,7 +1994,7 @@ function renderTbl(){
       // 200 EMA cross shown in EMA200 cell
       var e200Cell=ep(d.e200)+(d.cross200?'<br>'+cross200Cell(d.cross200):'');
       var _isUpd=d._fetchedDate===_todayDate;
-      h+=(_isUpd?'<tr class="row-updated"':'<tr>')
+      h+=(_isUpd?'<tr class="row-updated">':'<tr>')
         +starTd
         +'<td>'+scoreCell(d.score)+'</td>'
         +symTd
